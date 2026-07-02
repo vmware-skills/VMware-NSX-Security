@@ -1,3 +1,22 @@
+## v1.7.2 (2026-07-02) — name-search correctness + list pagination
+
+### Fixed
+- **Name search silently missed objects past the first 1000 (correctness bug).**
+  `list_groups` / `list_dfw_policies` fetched at most 1000 objects then filtered
+  client-side, so a group/policy ranked #1001+ returned "not found" on large
+  estates. Name filters now route through the NSX Policy **Search API** (server-side
+  match), with a bounded-scan fallback that raises a teaching error rather than
+  returning an empty result when it can't confirm. `list_dfw_rules` gained
+  `limit` / `offset` instead of draining every rule in a policy.
+
+### Changed
+- List operations accept server-side `page_size` / `limit` (consistent with the
+  sibling NSX `get_all`).
+
+> Note: the Search API query shape was validated against NSX documentation; if you
+> upgrade in a large environment, do a quick name-search smoke test against your
+> manager. The fallback path is safe (never reports a truncated list as empty).
+
 ## v1.7.1 (2026-07-02) — family version alignment
 
 No code changes. Version bump to stay aligned with the v1.7.1 family release

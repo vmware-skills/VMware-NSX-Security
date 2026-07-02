@@ -13,9 +13,9 @@ from vmware_policy import sanitize
 
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
-    filter_by_name,
     paginate,
 )
+from vmware_nsx_security.ops._search import search_by_name
 from vmware_nsx_security.ops._validate import validate_id as _validate_id
 
 if TYPE_CHECKING:
@@ -53,8 +53,16 @@ def list_dfw_policies(
     Returns:
         List of policy summary dicts with id, display_name, category,
         sequence_number, and rule count.
+
+    Note:
+        A ``name_filter`` is resolved server-side via the Policy Search API
+        so a match ranked past the ``get_all`` safety cap on a large estate
+        is still found — a plain client-side filter would silently miss it.
     """
-    items = filter_by_name(client.get_all(_DFW_BASE), name_filter)
+    if name_filter:
+        items = search_by_name(client, "SecurityPolicy", _DFW_BASE, name_filter)
+    else:
+        items = client.get_all(_DFW_BASE)
     return [
         {
             "id": sanitize(p.get("id", "")),
@@ -211,12 +219,13 @@ def delete_dfw_policy(client: NsxClient, policy_id: str) -> dict[str, str]:
         ValueError: If the policy still contains active rules.
     """
     _validate_id(policy_id, "policy_id")
-    rules = list_dfw_rules(client, policy_id)
-    if rules:
-        rule_ids = [r["id"] for r in rules]
+    # Existence probe only — fetch a single rule instead of draining every
+    # rule of a (potentially thousands-strong) Application policy.
+    if list_dfw_rules(client, policy_id, limit=1):
         raise ValueError(
-            f"Cannot delete policy '{policy_id}': it contains {len(rules)} rule(s). "
-            f"Delete the following rules first: {rule_ids}"
+            f"Cannot delete policy '{policy_id}': it still contains firewall "
+            "rule(s). Delete the rules first — run list_dfw_rules to review "
+            "them, then remove each before deleting the policy."
         )
 
     client.delete(f"{_DFW_BASE}/{policy_id}")
@@ -229,19 +238,33 @@ def delete_dfw_policy(client: NsxClient, policy_id: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
-def list_dfw_rules(client: NsxClient, policy_id: str) -> list[dict]:
-    """List all rules under a DFW security policy.
+def list_dfw_rules(
+    client: NsxClient,
+    policy_id: str,
+    limit: int = DEFAULT_LIMIT,
+    offset: int = 0,
+) -> list[dict]:
+    """List rules under a DFW security policy.
 
     Args:
         client: Authenticated NsxClient instance.
         policy_id: Policy ID whose rules to list.
+        limit: Max rules to return (default 50). Large Application policies
+            can hold hundreds-to-thousands of rules, so the fetch is bounded
+            server-side rather than draining every rule into agent context.
+        offset: Number of rules to skip (pagination).
 
     Returns:
         List of rule summary dicts with id, display_name, action, sources,
         destinations, services, scope, and hit-count fields.
     """
     _validate_id(policy_id, "policy_id")
-    items = client.get_all(f"{_DFW_BASE}/{policy_id}/rules")
+    # Fetch only up to the requested window (offset + limit) rather than the
+    # whole rule set; a non-positive limit yields an empty window (paginate
+    # returns []), so bound the fetch to 1 instead of the default backstop.
+    fetch_cap = offset + limit if limit > 0 else 1
+    items = client.get_all(f"{_DFW_BASE}/{policy_id}/rules", limit=fetch_cap)
+    items = paginate(items, limit, offset)
     return [
         {
             "id": sanitize(r.get("id", "")),

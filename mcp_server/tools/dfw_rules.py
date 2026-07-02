@@ -16,21 +16,30 @@ from mcp_server._shared import (
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 @vmware_tool(risk_level="low")
-def list_dfw_rules(policy_id: str, target: Optional[str] = None) -> list[dict]:
-    """[READ] List all rules in a DFW security policy.
+def list_dfw_rules(
+    policy_id: str,
+    target: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[dict]:
+    """[READ] List rules in a DFW security policy.
 
     Returns each rule's id, display_name, action, sources, destinations,
-    services, direction, disabled flag, and sequence number.
+    services, direction, disabled flag, and sequence number. Defaults to the
+    first 50 rules — large Application policies can hold thousands, so use
+    offset to page rather than draining every rule into context.
 
     Args:
         policy_id: Parent policy identifier.
         target: Optional NSX Manager target name from config.
+        limit: Max rules to return (default 50).
+        offset: Number of rules to skip (pagination).
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import list_dfw_rules as _fn
 
         client = _get_connection(target)
-        return _fn(client, policy_id)
+        return _fn(client, policy_id, limit=limit, offset=offset)
     except Exception as e:
         return [{"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}]
 

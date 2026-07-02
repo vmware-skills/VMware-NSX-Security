@@ -285,12 +285,14 @@ def rule_list(
     policy_id: str = typer.Argument(..., help="Parent policy ID"),
     target: TargetOption = None,
     config: ConfigOption = None,
+    limit: LimitOption = 50,
+    offset: OffsetOption = 0,
 ) -> None:
-    """List all rules in a DFW policy."""
+    """List rules in a DFW policy (first 50 by default; page with --offset)."""
     from vmware_nsx_security.ops.dfw_policy import list_dfw_rules
 
     client, _ = _get_connection(target, config)
-    rules = list_dfw_rules(client, policy_id)
+    rules = list_dfw_rules(client, policy_id, limit=limit, offset=offset)
 
     table = Table(title=f"DFW Rules in Policy '{policy_id}'")
     table.add_column("ID")

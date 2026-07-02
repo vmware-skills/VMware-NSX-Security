@@ -273,27 +273,49 @@ class NsxClient:
         path: str,
         params: dict[str, Any] | None = None,
         max_items: int = _MAX_ITEMS,
+        *,
+        page_size: int | None = None,
+        limit: int | None = None,
     ) -> list[dict]:
-        """Paginated GET. Follows cursor until all results collected.
+        """Paginated GET. Follows the cursor until enough results collected.
 
-        Collection stops at ``max_items`` (default 1000) as a safety cap —
-        callers wanting more should filter server-side instead of dumping
-        unbounded lists into agent context.
+        Args:
+            path: Collection endpoint path.
+            params: Extra query parameters (a server-side filter goes here).
+            max_items: Safety cap (default 1000) applied only when ``limit``
+                is not given — it stops an unfiltered dump from flooding
+                agent context.
+            page_size: Optional NSX ``page_size`` query hint (server-side
+                page size); the cursor is still followed until the effective
+                cap is reached.
+            limit: Stop following the cursor once this many items are
+                collected. When set it *replaces* the ``max_items`` backstop,
+                so a server-side-filtered query (e.g. the Search API) can
+                collect matches past the default 1000 — hitting ``limit`` is
+                expected and is not warned about.
+
+        Returns:
+            The collected result dicts, truncated to the effective cap.
         """
+        effective_cap = limit if limit is not None else max_items
         all_results: list[dict] = []
         params = dict(params) if params else {}
+        if page_size is not None:
+            params["page_size"] = page_size
         while True:
             data = self.get(path, params=params)
             results = data.get("results", [])
             all_results.extend(results)
-            if len(all_results) >= max_items:
-                _log.warning(
-                    "get_all(%s) hit the %d-item safety cap; results truncated. "
-                    "Use a server-side filter to narrow the query.",
-                    path,
-                    max_items,
-                )
-                return all_results[:max_items]
+            if len(all_results) >= effective_cap:
+                if limit is None:
+                    _log.warning(
+                        "get_all(%s) hit the %d-item safety cap; results "
+                        "truncated. Use a server-side filter to narrow the "
+                        "query.",
+                        path,
+                        effective_cap,
+                    )
+                return all_results[:effective_cap]
             cursor = data.get("cursor")
             if not cursor:
                 break

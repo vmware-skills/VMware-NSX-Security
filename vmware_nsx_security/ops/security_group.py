@@ -16,9 +16,9 @@ from vmware_policy import sanitize
 
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
-    filter_by_name,
     paginate,
 )
+from vmware_nsx_security.ops._search import search_by_name
 from vmware_nsx_security.ops._validate import validate_id as _validate_id
 
 if TYPE_CHECKING:
@@ -52,8 +52,16 @@ def list_groups(
     Returns:
         List of group summary dicts with id, display_name, expression
         type counts, and member count.
+
+    Note:
+        A ``name_filter`` is resolved server-side via the Policy Search API
+        so a match ranked past the ``get_all`` safety cap on a large estate
+        is still found — a plain client-side filter would silently miss it.
     """
-    items = filter_by_name(client.get_all(_GROUPS_BASE), name_filter)
+    if name_filter:
+        items = search_by_name(client, "Group", _GROUPS_BASE, name_filter)
+    else:
+        items = client.get_all(_GROUPS_BASE)
     return [
         {
             "id": sanitize(g.get("id", "")),
