@@ -15,7 +15,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from vmware_nsx_security.config import CONFIG_DIR
 from vmware_nsx_security.notify.audit import AuditLogger
 
 _audit = AuditLogger()

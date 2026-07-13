@@ -1,3 +1,9 @@
+## v1.7.5 (2026-07-13) — internal dead-code cleanup + family version alignment
+
+### Internal
+- Removed an unused `CONFIG_DIR` import (cli). No behavior change; MCP tool
+  surface unchanged (21).
+
 ## v1.7.4 (2026-07-13) — family version alignment
 
 ## v1.7.3 (2026-07-03) — family version alignment
