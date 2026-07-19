@@ -7,6 +7,14 @@ targets:
     username: admin
     port: 443
     verify_ssl: true
+    # Declare which environment this target is. Policy scopes by environment:
+    # a target labelled production requires a named approver
+    # (VMWARE_AUDIT_APPROVED_BY) for irreversible work — that part is active
+    # now. A target that declares nothing is treated as unknown: writes still
+    # run today but log a warning, and the next major release will refuse them,
+    # so declaring it now makes that upgrade a no-op. Read-only operations are
+    # never affected. Run 'vmware-audit policy' to see the rules in force.
+    environment: production
   nsx-lab:
     host: 10.0.0.50
     username: admin
@@ -14,6 +22,18 @@ targets:
     verify_ssl: false
 
 default_target: nsx-prod
+
+# Read-only mode (v1.8.0). When true, all 11 write tools (DFW policy/rule
+# create-update-delete, security group create/delete, VM tag apply/remove, and
+# run_traceflow — which injects a synthetic packet) are removed from the MCP
+# registry at startup, leaving the 10 read-only tools including DFW rule stats
+# and IDS/IPS profile queries. The model cannot call what list_tools() never
+# shows it, so no prompt discipline is required. Fail-closed: if read-only is
+# requested but cannot be proven, the server refuses to start.
+# Precedence: VMWARE_NSX_SECURITY_READ_ONLY > VMWARE_READ_ONLY > this setting >
+# off, so an MCP client's env block can lock a deployment down without editing
+# this file. Default is false.
+# read_only: true
 
 # Passwords are loaded from environment variables:
 # VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD=xxx

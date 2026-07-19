@@ -42,14 +42,20 @@ targets:
     username: admin
     port: 443
     verify_ssl: true
+    environment: production   # Which environment this is — see below
   nsx-lab:
     host: 10.0.0.50
     username: admin
     port: 443
     verify_ssl: false   # Allow self-signed cert in lab
+    environment: lab
 
 default_target: nsx-prod
 ```
+
+**`environment` (declare it now)**: policy rules scope by environment, and this declaration is the only thing that tells them which of your NSX Managers is production — the target's *name* is not used for it. Any label you like works (`production`, `staging`, `lab`, `dc2-prod`); `production` is the one the shipped rules attach a second-person approval requirement to for irreversible work.
+
+A target that declares nothing counts as unknown. Today a state-changing operation against it still runs and logs a warning; the next major release refuses it. Declaring `environment:` on each target now makes that upgrade a no-op. Read-only operations are never affected either way. Run `vmware-audit policy` to see the rules currently in force.
 
 ## 4. Set Passwords
 

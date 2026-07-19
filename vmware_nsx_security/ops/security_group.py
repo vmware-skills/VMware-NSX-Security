@@ -12,10 +12,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from vmware_policy import sanitize
+from vmware_policy import paginated, sanitize
 
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
+    known_total,
     paginate,
 )
 from vmware_nsx_security.ops._search import search_by_name
@@ -39,7 +40,7 @@ def list_groups(
     name_filter: str | None = None,
     limit: int = DEFAULT_LIMIT,
     offset: int = 0,
-) -> list[dict]:
+) -> dict:
     """List security groups in the default domain.
 
     Args:
@@ -50,8 +51,12 @@ def list_groups(
         offset: Number of matched groups to skip (pagination).
 
     Returns:
-        List of group summary dicts with id, display_name, expression
-        type counts, and member count.
+        The family list envelope; ``items`` holds group summary dicts with
+        id, display_name, expression type counts, and member count.
+        ``total`` is the real group count on the unfiltered path when the
+        scan stayed under the ``get_all`` cap, and ``None`` otherwise —
+        ``search_by_name`` returns only its matches, so a filtered listing
+        has no trustworthy total to report.
 
     Note:
         A ``name_filter`` is resolved server-side via the Policy Search API
@@ -60,9 +65,11 @@ def list_groups(
     """
     if name_filter:
         items = search_by_name(client, "Group", _GROUPS_BASE, name_filter)
+        total = None
     else:
         items = client.get_all(_GROUPS_BASE)
-    return [
+        total = known_total(items)
+    rows = [
         {
             "id": sanitize(g.get("id", "")),
             "display_name": sanitize(g.get("display_name", "")),
@@ -73,6 +80,7 @@ def list_groups(
         }
         for g in paginate(items, limit, offset)
     ]
+    return paginated(rows, limit=limit, total=total)
 
 
 def get_group(client: NsxClient, group_id: str) -> dict:

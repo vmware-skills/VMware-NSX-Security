@@ -21,12 +21,16 @@ def list_dfw_policies(
     name_filter: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-) -> list[dict]:
+) -> dict:
     """[READ] List DFW security policies in the default domain.
 
-    Returns each policy's id, display_name, category, sequence_number,
-    stateful flag, and rule count. Defaults to the first 50 matches —
-    use name_filter to narrow and offset to page on large estates.
+    Returns the list envelope: 'items' holds each policy's id, display_name,
+    category, sequence_number, stateful flag, and rule count, while
+    'returned'/'limit'/'total'/'truncated'/'hint' state whether the listing
+    is complete — a full page is never mistaken for the whole answer.
+    Defaults to the first 50 matches — use name_filter to narrow and offset
+    to page on large estates. 'total' is the real policy count on an
+    unfiltered listing and null when a name_filter is used.
 
     Args:
         target: Optional NSX Manager target name from config. Uses default if omitted.
@@ -40,7 +44,7 @@ def list_dfw_policies(
         client = _get_connection(target)
         return _fn(client, name_filter=name_filter, limit=limit, offset=offset)
     except Exception as e:
-        return [{"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}]
+        return {"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}
 
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})

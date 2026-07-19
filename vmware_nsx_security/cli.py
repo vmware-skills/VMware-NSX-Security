@@ -165,7 +165,7 @@ def policy_list(
     from vmware_nsx_security.ops.dfw_policy import list_dfw_policies
 
     client, _ = _get_connection(target, config)
-    policies = list_dfw_policies(client, name_filter=name_filter, limit=limit, offset=offset)
+    policies = list_dfw_policies(client, name_filter=name_filter, limit=limit, offset=offset)["items"]
 
     table = Table(title="DFW Security Policies")
     table.add_column("ID")
@@ -291,7 +291,7 @@ def rule_list(
     from vmware_nsx_security.ops.dfw_policy import list_dfw_rules
 
     client, _ = _get_connection(target, config)
-    rules = list_dfw_rules(client, policy_id, limit=limit, offset=offset)
+    rules = list_dfw_rules(client, policy_id, limit=limit, offset=offset)["items"]
 
     table = Table(title=f"DFW Rules in Policy '{policy_id}'")
     table.add_column("ID")
@@ -379,7 +379,7 @@ def group_list(
     from vmware_nsx_security.ops.security_group import list_groups
 
     client, _ = _get_connection(target, config)
-    groups = list_groups(client, name_filter=name_filter, limit=limit, offset=offset)
+    groups = list_groups(client, name_filter=name_filter, limit=limit, offset=offset)["items"]
 
     table = Table(title="Security Groups")
     table.add_column("ID")
@@ -572,7 +572,7 @@ def idps_profiles(
     from vmware_nsx_security.ops.idps import list_idps_profiles
 
     client, _ = _get_connection(target, config)
-    profiles = list_idps_profiles(client, name_filter=name_filter, limit=limit, offset=offset)
+    profiles = list_idps_profiles(client, name_filter=name_filter, limit=limit, offset=offset)["items"]
 
     table = Table(title="IDPS Profiles")
     table.add_column("ID")

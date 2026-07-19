@@ -15,11 +15,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from vmware_policy import sanitize
+from vmware_policy import paginated, sanitize
 
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
     filter_by_name,
+    known_total,
     paginate,
 )
 
@@ -41,7 +42,7 @@ def list_idps_profiles(
     name_filter: str | None = None,
     limit: int = DEFAULT_LIMIT,
     offset: int = 0,
-) -> list[dict]:
+) -> dict:
     """List IDPS profiles configured in NSX.
 
     IDPS profiles define which signature sets and actions (detect/prevent)
@@ -61,11 +62,17 @@ def list_idps_profiles(
         offset: Number of matched profiles to skip (pagination).
 
     Returns:
-        List of IDPS profile summary dicts with id, display_name,
-        criteria (filter_name/filter_value pairs), profile_severity
-        (comma-joined), and overridden_signature_count.
+        The family list envelope; ``items`` holds IDPS profile summary dicts
+        with id, display_name, criteria (filter_name/filter_value pairs),
+        profile_severity (comma-joined), and overridden_signature_count.
+        ``total`` is the real profile count on the unfiltered path when the
+        scan stayed under the ``get_all`` cap, and ``None`` otherwise — the
+        cap is measured on the raw fetch, before the client-side name filter,
+        since a filter can shrink a capped scan and disguise the gap.
     """
-    items = filter_by_name(client.get_all(f"{_IDPS_BASE}/profiles"), name_filter)
+    fetched = client.get_all(f"{_IDPS_BASE}/profiles")
+    total = None if name_filter else known_total(fetched)
+    items = filter_by_name(fetched, name_filter)
     profiles: list[dict] = []
     for p in paginate(items, limit, offset):
         criteria: list[dict] = []
@@ -98,7 +105,7 @@ def list_idps_profiles(
                 "path": sanitize(p.get("path", "")),
             }
         )
-    return profiles
+    return paginated(profiles, limit=limit, total=total)
 
 
 # ---------------------------------------------------------------------------

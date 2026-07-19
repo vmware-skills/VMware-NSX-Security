@@ -108,8 +108,11 @@ def test_list_groups_name_search_finds_match_past_1000_cap() -> None:
 
     result = list_groups(client, name_filter=needle)  # type: ignore[arg-type]
 
-    assert len(result) == 1
-    assert result[0]["display_name"] == needle
+    assert result["returned"] == 1
+    assert result["items"][0]["display_name"] == needle
+    # A search-resolved listing cannot prove a total, so it states none rather
+    # than reporting the (capped) scan length as fact.
+    assert result["total"] is None
     # Confirm the match was resolved server-side via the Search API, not a
     # client-side slice of the (capped) collection.
     assert any(c["path"] == _SEARCH_PATH for c in client.calls)
@@ -152,7 +155,7 @@ def test_list_dfw_rules_passes_limit_server_side() -> None:
     rule_calls = [c for c in client.calls if c["path"].endswith("/rules")]
     assert rule_calls, "expected a get_all on the rules endpoint"
     assert rule_calls[0]["limit"] == 15  # offset(10) + limit(5)
-    assert len(result) == 5
+    assert result["returned"] == 5
 
 
 def test_delete_dfw_policy_precheck_uses_bounded_probe() -> None:

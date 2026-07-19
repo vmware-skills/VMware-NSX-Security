@@ -7,6 +7,8 @@
 
 VMware NSX DFW microsegmentation and security MCP skill — 21 tools for distributed firewall policies/rules, security groups, VM tags, Traceflow packet tracing, and IDPS.
 
+- **Read-only mode** (v1.8.0) — one env var (`VMWARE_READ_ONLY=true`) strips all 11 write tools (DFW policy/rule writes, security groups, VM tags, Traceflow injection) from the MCP registry at startup, leaving the 10 read tools; ideal for audits, PoCs, and untrusted/local models. See [Read-Only Mode](#read-only-mode).
+
 > **Companion skills**: [vmware-nsx](https://github.com/zw008/VMware-NSX) (networking), [vmware-aiops](https://github.com/zw008/VMware-AIops) (VM lifecycle), [vmware-monitor](https://github.com/zw008/VMware-Monitor) (monitoring)
 
 ## Quick Start
@@ -23,6 +25,29 @@ chmod 600 ~/.vmware-nsx-security/.env
 
 vmware-nsx-security doctor
 ```
+
+## Read-Only Mode
+
+A prompt instruction is advisory — a model can ignore it. Read-only mode is structural: set `VMWARE_READ_ONLY=true` and all 11 write tools (DFW policy and rule create-update-delete, security group create/delete, VM tag apply/remove, Traceflow packet injection) are removed from the MCP registry at startup — `list_tools()` never offers them, so the model cannot call what it cannot see. The 10 read tools remain, including DFW rule stats and IDS/IPS profile and signature inspection. Off by default, and fail-closed: if the mode is requested but cannot be guaranteed, the server refuses to start.
+
+Three ways to enable:
+
+```json
+{
+  "mcpServers": {
+    "vmware-nsx-security": {
+      "command": "vmware-nsx-security",
+      "args": ["mcp"],
+      "env": { "VMWARE_READ_ONLY": "true" }
+    }
+  }
+}
+```
+
+- Per-skill override: `VMWARE_NSX_SECURITY_READ_ONLY=true` (takes precedence over the family-wide `VMWARE_READ_ONLY`)
+- Config alternative: `read_only: true` in `~/.vmware-nsx-security/config.yaml`
+
+Precedence: per-skill env → family env → config → off. Startup logs list exactly which tools were withheld.
 
 ## What It Does
 
@@ -127,12 +152,12 @@ entries carry `reason` + `acl_rule_id`), and a `dfw_hits` summary.
 
 | Skill | Scope | Tools | Install |
 |-------|-------|:-----:|---------|
-| **[vmware-aiops](https://github.com/zw008/VMware-AIops)** ⭐ entry point | VM lifecycle, deployment, guest ops, clusters | 31 | `uv tool install vmware-aiops` |
-| **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | Read-only monitoring, alarms, events, VM info | 8 | `uv tool install vmware-monitor` |
-| **[vmware-nsx](https://github.com/zw008/VMware-NSX)** | NSX networking: segments, gateways, NAT, IPAM | 31 | `uv tool install vmware-nsx-mgmt` |
+| **[vmware-aiops](https://github.com/zw008/VMware-AIops)** ⭐ entry point | VM lifecycle, deployment, guest ops, clusters | 49 | `uv tool install vmware-aiops` |
+| **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | Read-only monitoring, alarms, events, VM info | 27 | `uv tool install vmware-monitor` |
+| **[vmware-nsx](https://github.com/zw008/VMware-NSX)** | NSX networking: segments, gateways, NAT, IPAM | 33 | `uv tool install vmware-nsx-mgmt` |
 | **[vmware-storage](https://github.com/zw008/VMware-Storage)** | Datastores, iSCSI, vSAN | 11 | `uv tool install vmware-storage` |
 | **[vmware-vks](https://github.com/zw008/VMware-VKS)** | Tanzu Namespaces, TKC cluster lifecycle | 20 | `uv tool install vmware-vks` |
-| **[vmware-aria](https://github.com/zw008/VMware-Aria)** | Aria Ops metrics, alerts, capacity planning | 18 | `uv tool install vmware-aria` |
+| **[vmware-aria](https://github.com/zw008/VMware-Aria)** | Aria Ops metrics, alerts, capacity planning | 28 | `uv tool install vmware-aria` |
 
 
 ## Version Compatibility

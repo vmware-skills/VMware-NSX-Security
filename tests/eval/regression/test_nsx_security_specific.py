@@ -203,7 +203,7 @@ def test_list_idps_profiles_parses_polymorphic_criteria() -> None:
     ]
 
     profiles = list_idps_profiles(client)
-    p = profiles[0]
+    p = profiles["items"][0]
     assert p["criteria"] == [
         {"filter_name": "ATTACK_TYPE", "filter_value": ["trojan-activity"]},
         {"filter_name": "CVSS", "filter_value": ["CRITICAL", "HIGH"]},
@@ -654,7 +654,8 @@ def test_list_ops_default_limit_caps_count(import_path, fn_name) -> None:
     client.get_all.return_value = _named_items(200)
 
     result = fn(client)
-    assert len(result) == 50, "list ops must default to limit=50"
+    assert result["returned"] == 50, "list ops must default to limit=50"
+    assert result["truncated"] is True, "a capped page must say so"
 
 
 @pytest.mark.parametrize(
@@ -678,12 +679,12 @@ def test_list_ops_name_filter_narrows(import_path, fn_name) -> None:
 
     # substring match is case-insensitive
     result = fn(client, name_filter="WEB")
-    names = {r["display_name"] for r in result}
+    names = {r["display_name"] for r in result["items"]}
     assert names == {"web-frontend", "web-api"}
 
     # glob pattern is supported
     result = fn(client, name_filter="*backend")
-    assert {r["display_name"] for r in result} == {"db-backend"}
+    assert {r["display_name"] for r in result["items"]} == {"db-backend"}
 
 
 @pytest.mark.parametrize(
@@ -704,7 +705,9 @@ def test_list_ops_offset_paginates(import_path, fn_name) -> None:
     page1 = fn(client, limit=3, offset=0)
     page2 = fn(client, limit=3, offset=3)
 
-    assert [r["id"] for r in page1] == ["item-0", "item-1", "item-2"]
-    assert [r["id"] for r in page2] == ["item-3", "item-4", "item-5"]
+    assert [r["id"] for r in page1["items"]] == ["item-0", "item-1", "item-2"]
+    assert [r["id"] for r in page2["items"]] == ["item-3", "item-4", "item-5"]
     # windows do not overlap
-    assert not ({r["id"] for r in page1} & {r["id"] for r in page2})
+    assert not (
+        {r["id"] for r in page1["items"]} & {r["id"] for r in page2["items"]}
+    )

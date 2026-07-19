@@ -21,13 +21,17 @@ def list_dfw_rules(
     target: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-) -> list[dict]:
+) -> dict:
     """[READ] List rules in a DFW security policy.
 
-    Returns each rule's id, display_name, action, sources, destinations,
-    services, direction, disabled flag, and sequence number. Defaults to the
-    first 50 rules — large Application policies can hold thousands, so use
-    offset to page rather than draining every rule into context.
+    Returns the list envelope: 'items' holds each rule's id, display_name,
+    action, sources, destinations, services, direction, disabled flag, and
+    sequence number, while 'returned'/'limit'/'truncated'/'hint' state
+    whether the listing is complete. Defaults to the first 50 rules — large
+    Application policies can hold thousands, so use offset to page rather
+    than draining every rule into context. 'total' is always null here: the
+    fetch is bounded to the requested window, so a full page reports
+    truncated=true and should be paged to confirm.
 
     Args:
         policy_id: Parent policy identifier.
@@ -41,7 +45,7 @@ def list_dfw_rules(
         client = _get_connection(target)
         return _fn(client, policy_id, limit=limit, offset=offset)
     except Exception as e:
-        return [{"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}]
+        return {"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}
 
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})

@@ -9,10 +9,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from vmware_policy import sanitize
+from vmware_policy import paginated, sanitize
 
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
+    known_total,
     paginate,
 )
 from vmware_nsx_security.ops._search import search_by_name
@@ -40,7 +41,7 @@ def list_dfw_policies(
     name_filter: str | None = None,
     limit: int = DEFAULT_LIMIT,
     offset: int = 0,
-) -> list[dict]:
+) -> dict:
     """List DFW security policies in the default domain.
 
     Args:
@@ -51,8 +52,12 @@ def list_dfw_policies(
         offset: Number of matched policies to skip (pagination).
 
     Returns:
-        List of policy summary dicts with id, display_name, category,
-        sequence_number, and rule count.
+        The family list envelope; ``items`` holds policy summary dicts with
+        id, display_name, category, sequence_number, and rule count.
+        ``total`` is the real policy count on the unfiltered path when the
+        scan stayed under the ``get_all`` cap, and ``None`` otherwise —
+        ``search_by_name`` returns only its matches, so a filtered listing
+        has no trustworthy total to report.
 
     Note:
         A ``name_filter`` is resolved server-side via the Policy Search API
@@ -61,9 +66,11 @@ def list_dfw_policies(
     """
     if name_filter:
         items = search_by_name(client, "SecurityPolicy", _DFW_BASE, name_filter)
+        total = None
     else:
         items = client.get_all(_DFW_BASE)
-    return [
+        total = known_total(items)
+    rows = [
         {
             "id": sanitize(p.get("id", "")),
             "display_name": sanitize(p.get("display_name", "")),
@@ -76,6 +83,7 @@ def list_dfw_policies(
         }
         for p in paginate(items, limit, offset)
     ]
+    return paginated(rows, limit=limit, total=total)
 
 
 def get_dfw_policy(client: NsxClient, policy_id: str) -> dict:
@@ -221,7 +229,8 @@ def delete_dfw_policy(client: NsxClient, policy_id: str) -> dict[str, str]:
     _validate_id(policy_id, "policy_id")
     # Existence probe only — fetch a single rule instead of draining every
     # rule of a (potentially thousands-strong) Application policy.
-    if list_dfw_rules(client, policy_id, limit=1):
+    # ``items`` — not the envelope itself, which is always truthy.
+    if list_dfw_rules(client, policy_id, limit=1)["items"]:
         raise ValueError(
             f"Cannot delete policy '{policy_id}': it still contains firewall "
             "rule(s). Delete the rules first — run list_dfw_rules to review "
@@ -243,7 +252,7 @@ def list_dfw_rules(
     policy_id: str,
     limit: int = DEFAULT_LIMIT,
     offset: int = 0,
-) -> list[dict]:
+) -> dict:
     """List rules under a DFW security policy.
 
     Args:
@@ -255,8 +264,12 @@ def list_dfw_rules(
         offset: Number of rules to skip (pagination).
 
     Returns:
-        List of rule summary dicts with id, display_name, action, sources,
-        destinations, services, scope, and hit-count fields.
+        The family list envelope; ``items`` holds rule summary dicts with id,
+        display_name, action, sources, destinations, services, scope, and
+        hit-count fields. ``total`` is always ``None`` here: the fetch is
+        deliberately bounded to the requested window, so the rule count behind
+        it was never retrieved and must not be guessed. A full page therefore
+        reports ``truncated: true`` — page with ``offset`` to confirm.
     """
     _validate_id(policy_id, "policy_id")
     # Fetch only up to the requested window (offset + limit) rather than the
@@ -265,7 +278,7 @@ def list_dfw_rules(
     fetch_cap = offset + limit if limit > 0 else 1
     items = client.get_all(f"{_DFW_BASE}/{policy_id}/rules", limit=fetch_cap)
     items = paginate(items, limit, offset)
-    return [
+    rows = [
         {
             "id": sanitize(r.get("id", "")),
             "display_name": sanitize(r.get("display_name", "")),
@@ -283,3 +296,4 @@ def list_dfw_rules(
         }
         for r in items
     ]
+    return paginated(rows, limit=limit)

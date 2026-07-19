@@ -11,7 +11,7 @@ installer:
   package: vmware-nsx-security
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["VMWARE_NSX_SECURITY_CONFIG"],"bins":["vmware-nsx-security"],"config":["~/.vmware-nsx-security/config.yaml","~/.vmware-nsx-security/.env"]},"optional":{"env":["VMWARE_<TARGET>_PASSWORD"],"bins":["vmware-policy"]},"primaryEnv":"VMWARE_NSX_SECURITY_CONFIG","homepage":"https://github.com/zw008/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"env":["VMWARE_NSX_SECURITY_CONFIG"],"bins":["vmware-nsx-security"],"config":["~/.vmware-nsx-security/config.yaml","~/.vmware-nsx-security/.env"]},"optional":{"env":["VMWARE_<TARGET>_PASSWORD","VMWARE_READ_ONLY","VMWARE_NSX_SECURITY_READ_ONLY","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy"]},"primaryEnv":"VMWARE_NSX_SECURITY_CONFIG","homepage":"https://github.com/zw008/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
 compatibility: >
   vmware-policy auto-installed as Python dependency (provides @vmware_tool decorator and audit logging). All write operations audited to ~/.vmware/audit.db.
   Credentials: Each NSX Manager target requires a per-target password env var in ~/.vmware-nsx-security/.env following the pattern VMWARE_<TARGET_NAME_UPPER>_PASSWORD. Passwords are never logged or echoed.
@@ -151,6 +151,16 @@ vmware-nsx-security group list --target nsx-lab
 
 All MCP tools accept an optional `target` parameter.
 
+`list_dfw_policies`, `list_dfw_rules`, `list_groups` and `list_idps_profiles` return the family
+list envelope — `{items, returned, limit, total, truncated, hint}` — rather than a bare array.
+Read the rows from `items` and check `truncated` before concluding a listing is complete; a
+50-row default page looks identical to a whole estate without it. `total` is stated only where
+the scan proved it: it is the real count on an unfiltered listing that stayed under the
+1000-item `get_all` cap, and `null` for name-filtered listings, capped scans, and
+`list_dfw_rules` (whose fetch is bounded to the requested window). A `null` total with
+`truncated: true` means "there may be more" — page with `offset` to confirm. Errors return
+`{error, hint}` (a dict, not a one-element list).
+
 | Category | Tool | Type | Description |
 |----------|------|:----:|-------------|
 | DFW Policy | `list_dfw_policies` | Read | List all DFW security policies with category, sequence, and rule count |
@@ -247,6 +257,27 @@ A newly created rule will have zero hit counts until traffic matches it. If expe
 Password variable convention: `VMWARE_NSX_SECURITY_<TARGET_UPPER>_PASSWORD`
 where hyphens are replaced by underscores. For target `nsx-prod`:
 `VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD`. Check `~/.vmware-nsx-security/.env`.
+
+### "target does not declare which environment it is" on a write
+
+Policy scopes its rules by environment ("irreversible work in production needs a second person"), and it reads that from an explicit `environment:` declaration on each target — not from the target's name. A target that declares nothing counts as *unknown*:
+
+```
+delete_dfw_policy ran against a target that declares no environment. A future
+release will REFUSE this. Add 'environment: <name>' to that target in the
+skill's config.yaml.
+```
+
+Today this is a **warning only** — the operation still runs. The next major release refuses it, so declare it now and that upgrade is a no-op:
+
+```yaml
+targets:
+  nsx-prod:
+    host: nsx-manager.example.com
+    environment: production   # production | staging | lab | your own label
+```
+
+Read-only tools are never affected — listing DFW policies and rules, group membership, IDS/IPS status and Traceflow work untouched whether or not a target declares anything. Once declared, a target labelled `production` additionally requires a named approver (`VMWARE_AUDIT_APPROVED_BY`) for irreversible work; other labels change nothing beyond the risk tier recorded in the audit log. Run `vmware-audit policy` to see the rules in force.
 
 ### `invalid peer certificate: UnknownIssuer` (uvx)
 
