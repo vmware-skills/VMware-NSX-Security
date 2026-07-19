@@ -185,6 +185,16 @@ the scan proved it: it is the real count on an unfiltered listing that stayed un
 | IDPS | `list_idps_profiles` | Read | List IDPS profiles with severity and filter criteria |
 | | `get_idps_status` | Read | Get IDPS signature status + global IDS settings (auto_update, syslog export) |
 
+## Read-Only Mode
+
+If a write tool described above is absent from `list_tools()`, this deployment is in
+read-only mode: `VMWARE_READ_ONLY=true` (or `VMWARE_NSX_SECURITY_READ_ONLY`, or
+`read_only: true` in config.yaml) withholds all 11 write tools at start-up, leaving the 10
+read tools. That is a deliberate lockdown, not a fault — do not retry, and do not look for
+another tool that achieves the same change. Note `run_traceflow` is among them: injecting a
+probe packet counts as a write. Name the blocked operation and say an operator must clear
+the switch and restart the server. Read tools are unaffected.
+
 ## CLI Quick Reference
 
 ```bash
