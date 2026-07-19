@@ -597,7 +597,7 @@ def test_jump_to_application_constraint_documented() -> None:
 def test_mcp_exposes_all_21_tools() -> None:
     import asyncio
 
-    from mcp_server.server import mcp
+    from vmware_nsx_security.mcp_server.server import mcp
 
     tools = asyncio.run(mcp.list_tools())
     names = sorted(t.name for t in tools)

@@ -4,7 +4,7 @@ from typing import Optional
 
 from vmware_policy import vmware_tool
 
-from mcp_server._shared import _DOCTOR_HINT, _get_connection, _safe_error, mcp
+from vmware_nsx_security.mcp_server._shared import _DOCTOR_HINT, _get_connection, _safe_error, mcp
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})

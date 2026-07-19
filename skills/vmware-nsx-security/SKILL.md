@@ -193,7 +193,7 @@ read-only mode: `VMWARE_READ_ONLY=true` (or `VMWARE_NSX_SECURITY_READ_ONLY`, or
 read tools. That is a deliberate lockdown, not a fault — do not retry, and do not look for
 another tool that achieves the same change. Note `run_traceflow` is among them: injecting a
 probe packet counts as a write. Name the blocked operation and say an operator must clear
-the switch and restart the server. Read tools are unaffected.
+the switch and restart the server. Read tools are unaffected. Running with local or small models? See [`references/agent-guardrails.md`](references/agent-guardrails.md).
 
 ## CLI Quick Reference
 

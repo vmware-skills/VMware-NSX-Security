@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vmware-nsx-security"
-version = "1.8.1"
+version = "1.8.2"
 description = "VMware NSX DFW microsegmentation and security: distributed firewall, security groups, tags, traceflow, IDPS"
 readme = "README.md"
 license = "MIT"
@@ -30,10 +30,10 @@ dependencies = [
 
 [project.scripts]
 vmware-nsx-security = "vmware_nsx_security.cli:app"
-vmware-nsx-security-mcp = "mcp_server.server:main"
+vmware-nsx-security-mcp = "vmware_nsx_security.mcp_server.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["vmware_nsx_security", "mcp_server"]
+packages = ["vmware_nsx_security"]
 
 [dependency-groups]
 dev = [

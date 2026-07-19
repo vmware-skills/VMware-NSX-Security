@@ -1,6 +1,6 @@
 """MCP server wrapping VMware NSX Security operations.
 
-This module is the thin entrypoint: it imports ``mcp_server.tools`` (which
+This module is the thin entrypoint: it imports ``vmware_nsx_security.mcp_server.tools`` (which
 registers all 21 ``@mcp.tool()`` functions onto the shared ``mcp`` instance),
 re-exports the tool functions and shared plumbing for direct import, and
 exposes ``main()`` as the ``vmware-nsx-security-mcp`` console entry point.
@@ -42,8 +42,8 @@ from vmware_nsx_security.config import CONFIG_FILE, load_config
 
 # Importing the tools package executes every @mcp.tool() decorator and
 # registers all 21 tools onto the shared `mcp` instance.
-import mcp_server.tools  # noqa: F401
-from mcp_server._shared import (  # noqa: F401
+import vmware_nsx_security.mcp_server.tools  # noqa: F401
+from vmware_nsx_security.mcp_server._shared import (  # noqa: F401
     _DOCTOR_HINT,
     _audit,
     _get_connection,
@@ -53,38 +53,38 @@ from mcp_server._shared import (  # noqa: F401
     mcp,
 )
 
-# Re-export the tool functions so `from mcp_server.server import apply_vm_tag`
+# Re-export the tool functions so `from vmware_nsx_security.mcp_server.server import apply_vm_tag`
 # and similar direct imports keep working after the domain split.
-from mcp_server.tools.dfw_policy import (  # noqa: F401
+from vmware_nsx_security.mcp_server.tools.dfw_policy import (  # noqa: F401
     create_dfw_policy,
     delete_dfw_policy,
     get_dfw_policy,
     list_dfw_policies,
     update_dfw_policy,
 )
-from mcp_server.tools.dfw_rules import (  # noqa: F401
+from vmware_nsx_security.mcp_server.tools.dfw_rules import (  # noqa: F401
     create_dfw_rule,
     delete_dfw_rule,
     get_dfw_rule_stats,
     list_dfw_rules,
     update_dfw_rule,
 )
-from mcp_server.tools.groups import (  # noqa: F401
+from vmware_nsx_security.mcp_server.tools.groups import (  # noqa: F401
     create_group,
     delete_group,
     get_group,
     list_groups,
 )
-from mcp_server.tools.idps import (  # noqa: F401
+from vmware_nsx_security.mcp_server.tools.idps import (  # noqa: F401
     get_idps_status,
     list_idps_profiles,
 )
-from mcp_server.tools.tags import (  # noqa: F401
+from vmware_nsx_security.mcp_server.tools.tags import (  # noqa: F401
     apply_vm_tag,
     list_vm_tags,
     remove_vm_tag,
 )
-from mcp_server.tools.traceflow import (  # noqa: F401
+from vmware_nsx_security.mcp_server.tools.traceflow import (  # noqa: F401
     get_traceflow_result,
     run_traceflow,
 )

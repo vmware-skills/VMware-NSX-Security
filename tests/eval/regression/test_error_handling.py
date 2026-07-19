@@ -311,7 +311,7 @@ def test_connect_closes_stale_client_before_replacing() -> None:
 
 
 def test_safe_error_passes_nsx_api_error_through() -> None:
-    from mcp_server.server import _safe_error
+    from vmware_nsx_security.mcp_server.server import _safe_error
 
     err = NsxApiError(
         "NSX GET /x returned HTTP 404. Nothing exists at /x.",
@@ -328,13 +328,13 @@ def test_safe_error_passes_nsx_api_error_through() -> None:
 
 
 def test_mcp_write_failure_is_audited_as_error() -> None:
-    import mcp_server._shared as shared
-    import mcp_server.server as server
-    import mcp_server.tools.tags as tags
+    import vmware_nsx_security.mcp_server._shared as shared
+    import vmware_nsx_security.mcp_server.server as server
+    import vmware_nsx_security.mcp_server.tools.tags as tags
 
-    # After the domain split the tool body lives in mcp_server.tools.tags and
+    # After the domain split the tool body lives in vmware_nsx_security.mcp_server.tools.tags and
     # binds `_get_connection` in that namespace; `_write_error` audits via the
-    # `_audit` global in mcp_server._shared. Patch each at its real home.
+    # `_audit` global in vmware_nsx_security.mcp_server._shared. Patch each at its real home.
     audit = MagicMock()
     with patch.object(shared, "_audit", audit), patch.object(
         tags, "_get_connection",

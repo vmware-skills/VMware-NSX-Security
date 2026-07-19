@@ -4,7 +4,7 @@ from typing import Optional
 
 from vmware_policy import vmware_tool
 
-from mcp_server._shared import (
+from vmware_nsx_security.mcp_server._shared import (
     _DOCTOR_HINT,
     _audit,
     _get_connection,

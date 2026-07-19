@@ -9,7 +9,7 @@ in the rule. Nobody names an NSX Manager ``production``; they name it
 Environment is now an explicit declaration in config.yaml. This pins the
 skill's half of that contract end to end: ``TargetConfig`` parses the field,
 ``AppConfig.environment_for`` resolves it (including via ``default_target``),
-and ``mcp_server.server`` registers that lookup with vmware-policy so the rules
+and ``vmware_nsx_security.mcp_server.server`` registers that lookup with vmware-policy so the rules
 can fire at all.
 
 The rollout is two-step, and both steps are pinned here:
@@ -68,7 +68,7 @@ def _server(tmp_path, monkeypatch, rules: str | None):
     omitted to fall back to vmware-policy's packaged baseline. Redirecting
     ``OPS_HOME`` also keeps audit/undo state out of the developer's ~/.vmware.
     """
-    import mcp_server.server as srv
+    import vmware_nsx_security.mcp_server.server as srv
 
     ops_home = tmp_path / "ops"
     ops_home.mkdir()
@@ -142,7 +142,7 @@ def test_server_registers_its_resolver_with_policy(tmp_path, monkeypatch) -> Non
 
 def test_write_against_undeclared_target_warns_but_runs(baseline, caplog) -> None:
     """Migration window: nothing breaks yet, but the operator is told."""
-    import mcp_server.tools.tags as tags
+    import vmware_nsx_security.mcp_server.tools.tags as tags
     import vmware_policy.policy as policy_mod
 
     policy_mod._warned_operations.clear()  # warned once per process otherwise
@@ -160,7 +160,7 @@ def test_write_against_undeclared_target_warns_but_runs(baseline, caplog) -> Non
 
 
 def test_write_against_undeclared_target_is_denied_when_enforcing(enforcing) -> None:
-    import mcp_server.tools.tags as tags
+    import vmware_nsx_security.mcp_server.tools.tags as tags
 
     with patch.object(tags, "_get_connection", return_value=MagicMock()):
         with pytest.raises(PolicyDenied) as denied:
@@ -174,7 +174,7 @@ def test_write_against_undeclared_target_is_denied_when_enforcing(enforcing) -> 
 
 @pytest.mark.parametrize("fixture", ["baseline", "enforcing"])
 def test_write_against_declared_target_succeeds(request, fixture) -> None:
-    import mcp_server.tools.tags as tags
+    import vmware_nsx_security.mcp_server.tools.tags as tags
 
     server = request.getfixturevalue(fixture)
 
@@ -194,7 +194,7 @@ def test_write_against_declared_target_succeeds(request, fixture) -> None:
 @pytest.mark.parametrize("target", [DECLARED, UNDECLARED])
 def test_reads_work_whether_or_not_the_target_declares(request, fixture, target) -> None:
     """Read-only work must keep working with no config changes at all."""
-    import mcp_server.tools.groups as groups
+    import vmware_nsx_security.mcp_server.tools.groups as groups
 
     server = request.getfixturevalue(fixture)
     found = [{"id": "grp-1", "display_name": "web-tier"}]
