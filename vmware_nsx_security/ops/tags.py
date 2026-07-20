@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from vmware_policy import sanitize
+from vmware_policy import paginated, sanitize
 
 if TYPE_CHECKING:
     from vmware_nsx_security.connection import NsxClient
@@ -42,8 +42,15 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
         vm_display_name: Display name of the virtual machine to query.
 
     Returns:
-        Dict with 'vm_id', 'display_name', and 'tags' list (each tag
-        has 'scope' and 'tag' fields).
+        The family list envelope; ``items`` holds the VM's tag dicts (each
+        with 'scope' and 'tag' fields), alongside the extras 'vm_id',
+        'display_name' and 'power_state' naming the VM they belong to.
+
+        The fabric API returns a VM's tags in full, in one response, so the
+        set is never paged: ``limit`` is None, ``total`` equals ``returned``,
+        and ``truncated`` is always False. That is the honest reading — a
+        short tag list here means the VM really has that many tags, not that
+        the listing stopped early.
 
     Raises:
         KeyError: If no VM with that display name is found.
@@ -57,21 +64,32 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
     vms = data.get("results", [])
 
     if not vms:
-        raise KeyError(f"No virtual machine found with display_name='{safe_name}'")
+        raise KeyError(
+            "No such VM in the NSX fabric inventory. The name must match "
+            "the vCenter VM name exactly (case-sensitive, no "
+            "wildcards). Run vmware-monitor's list_virtual_machines to copy "
+            f"an exact VM name, then retry. Got: '{safe_name}'"
+        )
     if len(vms) > 1:
         names = [v.get("display_name", "") for v in vms]
         raise ValueError(
-            f"Multiple VMs found with display_name='{safe_name}': {names}. "
-            "Use external_id to disambiguate."
+            f"Multiple VMs share display_name='{safe_name}' — NSX cannot "
+            "resolve the tag owner from an ambiguous name. Run "
+            "vmware-monitor's list_virtual_machines to identify the intended "
+            "VM's instance UUID, then pass that UUID as vm_id to apply_vm_tag "
+            f"or remove_vm_tag directly. Matches: {names}"
         )
 
     vm = vms[0]
-    return {
-        "vm_id": sanitize(vm.get("external_id", "")),
-        "display_name": sanitize(vm.get("display_name", "")),
-        "power_state": vm.get("power_state", ""),
-        "tags": vm.get("tags", []),
-    }
+    tags = vm.get("tags", [])
+    return paginated(
+        tags,
+        limit=None,
+        total=len(tags),
+        vm_id=sanitize(vm.get("external_id", "")),
+        display_name=sanitize(vm.get("display_name", "")),
+        power_state=vm.get("power_state", ""),
+    )
 
 
 # ---------------------------------------------------------------------------

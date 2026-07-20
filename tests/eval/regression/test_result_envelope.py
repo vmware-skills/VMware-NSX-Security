@@ -6,7 +6,7 @@ information or incorrectly state that no data was returned." A bare
 ``list[dict]`` gives a model no way to tell a whole answer from page one, so it
 guesses — and a guess that reads "no data" looks like a finding.
 
-The four read list tools here return the family envelope. What this file
+The five read list tools here return the family envelope. What this file
 mostly pins is the honesty of ``total``: NSX's ``get_all`` drains the cursor
 but stops at a 1000-item safety cap and never surfaces the wire's
 ``result_count``, so a total is reported only where the scan proved one. A
@@ -30,6 +30,7 @@ from vmware_nsx_security.ops.dfw_policy import (
 )
 from vmware_nsx_security.ops.idps import list_idps_profiles
 from vmware_nsx_security.ops.security_group import list_groups
+from vmware_nsx_security.ops.tags import list_vm_tags
 
 ENVELOPE_KEYS = {"items", "returned", "limit", "total", "truncated", "hint"}
 
@@ -73,6 +74,71 @@ def test_list_dfw_rules_carries_every_envelope_key() -> None:
     client = _mock_client()
     client.get_all.return_value = _items(3, "rule")
     assert ENVELOPE_KEYS <= set(list_dfw_rules(client, "app-policy"))
+
+
+# ---------------------------------------------------------------------------
+# list_vm_tags — the fifth list tool, and the one that was left out
+# ---------------------------------------------------------------------------
+#
+# It reads a single VM's tags rather than a collection, so it has no
+# limit/offset. That is not a reason to return a different shape: a tool named
+# ``list_*`` that hands back a bare ``tags`` key is exactly the ambiguity the
+# envelope exists to remove, and a model that has learned "read ``items``" from
+# the other four has no way to know this one is special. The VM identity rides
+# along as extras.
+
+
+def _vm_client(tags: list[dict]) -> MagicMock:
+    client = _mock_client()
+    client.get.return_value = {
+        "results": [
+            {
+                "external_id": "vm-uuid-1",
+                "display_name": "web-01",
+                "power_state": "ON",
+                "tags": tags,
+            }
+        ]
+    }
+    return client
+
+
+def test_list_vm_tags_carries_every_envelope_key() -> None:
+    result = list_vm_tags(_vm_client([{"scope": "env", "tag": "prod"}]), "web-01")
+    assert ENVELOPE_KEYS <= set(result)
+    assert result["items"] == [{"scope": "env", "tag": "prod"}]
+
+
+def test_list_vm_tags_keeps_vm_identity_alongside_the_envelope() -> None:
+    """``vm_id`` is what apply_vm_tag needs — wrapping must not drop it."""
+    result = list_vm_tags(_vm_client([]), "web-01")
+    assert result["vm_id"] == "vm-uuid-1"
+    assert result["display_name"] == "web-01"
+    assert result["power_state"] == "ON"
+
+
+def test_untagged_vm_is_an_explicit_zero_not_a_silent_empty() -> None:
+    """"This VM has no tags" must not read the same as "the call failed"."""
+    result = list_vm_tags(_vm_client([]), "web-01")
+    assert result["items"] == []
+    assert result["returned"] == 0
+    assert result["total"] == 0
+    assert result["truncated"] is False
+    assert result["hint"] is None
+
+
+def test_vm_tags_are_never_reported_as_truncated() -> None:
+    """The fabric API returns a VM's tags in full, so nothing is ever withheld.
+
+    ``limit`` is None rather than a number: there is no window to raise, and a
+    number here would invite a pointless "page for the rest" follow-up call.
+    """
+    result = list_vm_tags(_vm_client([{"scope": "s", "tag": str(i)} for i in range(80)]), "web-01")
+    assert result["returned"] == 80
+    assert result["total"] == 80
+    assert result["limit"] is None
+    assert result["truncated"] is False
+    assert result["hint"] is None
 
 
 @pytest.mark.parametrize(("import_path", "fn_name"), COLLECTION_OPS)

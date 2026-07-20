@@ -201,7 +201,12 @@ class AppConfig:
         cfg = self.get_target(name)
         if cfg is None:
             available = ", ".join(self.targets.keys())  # type: ignore[union-attr]
-            raise KeyError(f"Target '{name}' not found. Available: {available}")
+            raise KeyError(
+                f"Target '{name}' not found. Copy an exact name from the list "
+                "below, or add the target to the 'targets:' block of "
+                "~/.vmware-nsx-security/config.yaml (run 'vmware-nsx-security "
+                f"init' to add one interactively). Available: {available}"
+            )
         return cfg
 
 

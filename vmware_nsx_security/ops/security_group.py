@@ -266,10 +266,9 @@ def delete_group(client: NsxClient, group_id: str) -> dict[str, str]:
         )
     except Exception as exc:
         raise ValueError(
-            f"Cannot delete group '{group_id}': the reference (group-"
-            f"associations) check failed ({exc}). Refusing to delete a "
-            "group that may still be in use. Verify NSX connectivity (run "
-            "'vmware-nsx-security doctor') and retry."
+            f"Cannot delete group '{group_id}': the group-associations check "
+            "failed, so it may still be in use. Verify NSX connectivity (run "
+            f"'vmware-nsx-security doctor') and retry. Detail: {exc}"
         ) from exc
 
     if associations:
@@ -279,9 +278,11 @@ def delete_group(client: NsxClient, group_id: str) -> dict[str, str]:
             for a in associations
         ]
         raise ValueError(
-            f"Cannot delete group '{group_id}': referenced by {len(refs)} "
-            f"entity/entities (nested groups, DFW/gateway firewall, "
-            f"service-insertion, etc.): {refs}. Remove the references first."
+            f"Cannot delete group '{group_id}': {len(refs)} entity/entities "
+            "still reference it. Remove them first — run list_dfw_rules on "
+            "each SecurityPolicy below, then use update_dfw_rule to drop "
+            "this group from the rule's sources/destinations (or "
+            f"delete_dfw_rule), and retry. Referenced by: {refs}"
         )
 
     client.delete(f"{_GROUPS_BASE}/{group_id}")

@@ -465,7 +465,7 @@ def tag_list(
     table = Table(title="NSX Tags")
     table.add_column("Scope")
     table.add_column("Tag")
-    for t_entry in result.get("tags", []):
+    for t_entry in result.get("items", []):
         table.add_row(t_entry.get("scope", ""), t_entry.get("tag", ""))
     console.print(table)
 

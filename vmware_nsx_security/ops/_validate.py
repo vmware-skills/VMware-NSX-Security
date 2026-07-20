@@ -29,7 +29,10 @@ def validate_id(value: str, field: str = "id") -> str:
     """
     if not _ID_PATTERN.match(value):
         raise ValueError(
-            f"Invalid {field} '{value}': only alphanumerics, hyphens, "
-            "underscores, and dots are allowed."
+            f"Invalid {field}: only alphanumerics, hyphens, underscores, and "
+            "dots are allowed; spaces or '/' almost always mean a display "
+            "name or policy path was passed instead of an id. Run the "
+            "matching list tool (list_dfw_policies, list_dfw_rules, "
+            f"list_groups) and copy the 'id' field. Got: '{value}'"
         )
     return value

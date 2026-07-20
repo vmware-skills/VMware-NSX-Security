@@ -31,7 +31,7 @@ from vmware_nsx_security.connection import NsxApiError
     [
         NsxApiError("NSX GET /x returned HTTP 404. Nothing exists at /x.", status_code=404),
         FileNotFoundError("Config file not found: ~/.vmware-nsx-security/config.yaml"),
-        KeyError("No virtual machine found with display_name='web-99'"),
+        KeyError("No virtual machine named 'web-99' exists in the NSX fabric inventory."),
         OSError("Permission denied: ~/.vmware-nsx-security/.env"),
     ],
 )

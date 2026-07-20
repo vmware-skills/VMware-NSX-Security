@@ -240,7 +240,7 @@ vmware-nsx-security doctor [--skip-auth]
 
 `delete_group` scans all policies for references to the group in rule source_groups, destination_groups, and applied-to scope, plus policy-level scope. Remove the group from those references first (via `update_dfw_rule` replacing the group path with 'ANY' or another group), then retry. If the error says the reference scan itself failed, deletion was aborted as a precaution — verify NSX connectivity with `vmware-nsx-security doctor` and retry.
 
-### "No virtual machine found with display_name"
+### "No virtual machine named ... exists in the NSX fabric inventory"
 
 `list_vm_tags` looks up VMs by display name via the NSX fabric API. Common causes:
 1. Display name mismatch — the name in NSX Manager may differ from vCenter. Check `vmware-monitor vm list` for the exact NSX fabric display name.

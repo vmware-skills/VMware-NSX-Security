@@ -81,9 +81,10 @@ def create_dfw_rule(
 
     if action not in _VALID_ACTIONS:
         raise ValueError(
-            f"Invalid action '{action}'. Must be one of: {_VALID_ACTIONS}. "
-            "Note: JUMP_TO_APPLICATION is only allowed when the parent "
-            "policy's category is Environment."
+            f"Invalid action. Must be one of: {_VALID_ACTIONS}. "
+            "JUMP_TO_APPLICATION requires the parent policy's category to be "
+            f"Environment — run get_dfw_policy on '{policy_id}' to check. "
+            f"Got: '{action}'"
         )
     if direction not in _VALID_DIRECTIONS:
         raise ValueError(f"Invalid direction '{direction}'. Must be one of: {_VALID_DIRECTIONS}")
@@ -152,9 +153,10 @@ def update_dfw_rule(
 
     if action is not None and action not in _VALID_ACTIONS:
         raise ValueError(
-            f"Invalid action '{action}'. Must be one of: {_VALID_ACTIONS}. "
-            "Note: JUMP_TO_APPLICATION is only allowed when the parent "
-            "policy's category is Environment."
+            f"Invalid action. Must be one of: {_VALID_ACTIONS}. "
+            "JUMP_TO_APPLICATION requires the parent policy's category to be "
+            f"Environment — run get_dfw_policy on '{policy_id}' to check. "
+            f"Got: '{action}'"
         )
 
     body: dict[str, Any] = {}
@@ -178,7 +180,12 @@ def update_dfw_rule(
         body["description"] = sanitize(description)
 
     if not body:
-        raise ValueError("No fields provided to update.")
+        raise ValueError(
+            "No fields provided. This is a PATCH — specify at least one of: "
+            "display_name, action, sources, destinations, services, logged, "
+            "disabled, sequence_number, description. Run list_dfw_rules to "
+            f"see current values. Rule: '{rule_id}'"
+        )
 
     result = client.patch(f"{_DFW_BASE}/{policy_id}/rules/{rule_id}", body)
     _log.info("Updated DFW rule: %s in policy %s", rule_id, policy_id)

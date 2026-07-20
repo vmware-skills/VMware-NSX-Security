@@ -101,11 +101,11 @@ def search_by_name(
         matched = filter_by_name(items, name_filter)
         if not matched and len(items) >= cap:
             raise NsxApiError(
-                f"Name search for '{name_filter}' scanned the first {cap} "
-                f"{resource_type} objects without a match, and the collection "
-                f"hit the {cap}-item cap — a match may exist beyond it. The "
-                "Policy Search API (which searches server-side) was "
-                "unavailable, so this is NOT a confirmed 'not found'. Narrow "
-                "the filter or query NSX Search directly and retry."
+                "NOT a confirmed 'not found': Search API unavailable and the "
+                f"fallback scan hit its {cap}-item cap, so a match may exist "
+                "beyond it. Narrow name_filter to a tighter prefix (e.g. "
+                "'web-*') and re-run list_dfw_policies / list_groups, or run "
+                "'vmware-nsx-security doctor'. "
+                f"No {resource_type} matched '{name_filter}'."
             ) from exc
         return matched

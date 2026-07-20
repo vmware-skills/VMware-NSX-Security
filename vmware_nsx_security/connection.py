@@ -63,8 +63,8 @@ def _hint_for_status(status_code: int, path: str) -> str:
     """Return a short, actionable remediation hint for an HTTP error status."""
     if status_code == 404:
         return (
-            f"Nothing exists at {path}. Verify the id — run list_dfw_policies / "
-            "list_groups (or the matching list command) and copy an exact ID."
+            "Verify the id — run list_dfw_policies / list_groups (or the "
+            f"matching list command) and copy an exact ID. Nothing exists at {path}."
         )
     if status_code == 400:
         return "Bad request — check the parameters and payload for this call."
@@ -169,14 +169,13 @@ class NsxClient:
             ) from exc
         if resp.status_code >= 400:
             raise NsxApiError(
-                f"NSX session creation for {self._target.host} failed with "
-                f"HTTP {resp.status_code}. Check the username in config.yaml "
-                "and the VMWARE_NSX_SECURITY_<TARGET>_PASSWORD env var in "
-                "~/.vmware-nsx-security/.env — wrong credentials are the "
-                "usual cause. Special characters in the password are handled "
-                "via form-body auth, so they are not the issue. Run "
-                "'vmware-nsx-security init' to reset credentials or "
-                "'vmware-nsx-security doctor' to verify.",
+                f"NSX session creation failed with HTTP {resp.status_code} — "
+                "usually wrong credentials (not special characters; "
+                "form-body auth handles those). Check the username in "
+                "config.yaml and "
+                "VMWARE_NSX_SECURITY_<TARGET>_PASSWORD in "
+                "~/.vmware-nsx-security/.env, or run 'vmware-nsx-security "
+                f"init' to reset them. Target: {self._target.host}",
                 status_code=resp.status_code,
                 method="POST",
                 path="/api/session/create",
@@ -184,9 +183,12 @@ class NsxClient:
         self._token = resp.headers.get("x-xsrf-token")
         if not self._token:
             raise NsxApiError(
-                "NSX session creation succeeded but no X-XSRF-TOKEN was "
-                "returned. The endpoint may be fronted by a proxy that strips "
-                "headers — check the manager URL points directly at NSX.",
+                "NSX session creation succeeded but returned no X-XSRF-TOKEN "
+                "— a proxy or load balancer is most likely stripping "
+                "headers. Check that this target's 'host' in "
+                "~/.vmware-nsx-security/config.yaml points directly at NSX "
+                "Manager, then re-run 'vmware-nsx-security doctor'. Target: "
+                f"{self._target.host}",
                 method="POST",
                 path="/api/session/create",
             )
@@ -237,7 +239,10 @@ class NsxClient:
                     time.sleep(_RETRY_DELAY_SEC)
                     continue
                 raise NsxApiError(
-                    f"NSX {method} {path} could not connect: {exc}. Check the host/port and network, then retry.",
+                    f"NSX {method} {path} could not connect. Check the "
+                    "host/port and network, then retry — run "
+                    "'vmware-nsx-security doctor' to test reachability and TLS "
+                    f"for this target. Detail: {exc}",
                     method=method,
                     path=path,
                 ) from exc
@@ -258,7 +263,7 @@ class NsxClient:
 
             if resp.status_code >= 400:
                 raise NsxApiError(
-                    f"NSX {method} {path} returned HTTP {resp.status_code}. {_hint_for_status(resp.status_code, path)}",
+                    f"{_hint_for_status(resp.status_code, path)} (NSX {method} {path} returned HTTP {resp.status_code})",
                     status_code=resp.status_code,
                     method=method,
                     path=path,
@@ -394,7 +399,15 @@ class ConnectionManager:
         """Get or create an NsxClient for the specified target."""
         name = target_name or self._config.default_target
         if not name:
-            raise ValueError("No target specified and no default target configured")
+            configured = ", ".join(self._config.targets.keys())
+            raise ValueError(
+                "No target specified and no default target configured. Pass "
+                "one of the names below as the target, or set "
+                "'default_target' in ~/.vmware-nsx-security/config.yaml — run "
+                "'vmware-nsx-security init' to create that file, or "
+                "'vmware-nsx-security doctor' to check the one you have. "
+                f"Available: {configured or '(none)'}"
+            )
 
         cached = self._clients.get(name)
         if cached is not None:
@@ -408,7 +421,12 @@ class ConnectionManager:
         target_cfg = self._config.get_target(name)
         if target_cfg is None:
             available = ", ".join(self._config.targets.keys())
-            raise ValueError(f"Target '{name}' not found. Available: {available}")
+            raise ValueError(
+                f"Target '{name}' not found. Copy an exact name from the list "
+                "below, or add the target to the 'targets:' block of "
+                "~/.vmware-nsx-security/config.yaml (run 'vmware-nsx-security "
+                f"init' to add one interactively). Available: {available}"
+            )
 
         # Resolve both halves of the credential together — a username left
         # behind by a rotation would pair with the new password and fail.

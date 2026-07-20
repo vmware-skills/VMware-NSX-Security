@@ -33,12 +33,26 @@ def _safe_error(exc: Exception, tool: str) -> str:
     Raw exception text from NSX can carry response bodies, internal paths, or
     host:port pairs. We log the full traceback to stderr (operator-visible) and
     return only a control-char-stripped, length-capped message to the agent.
-    ``ValueError`` is treated as an intentional, user-facing validation message
-    (e.g. "policy has active rules"); the connection layer's teaching errors
-    (``NsxApiError``) also pass through; other exceptions get a generic message.
+
+    The rule is a property, not a list: every exception this skill raises on
+    purpose passes through, and only genuinely unplanned ones are reduced. That
+    covers ``ValueError`` as an intentional, user-facing validation message
+    (e.g. "policy has active rules") and the connection layer's teaching errors
+    (``NsxApiError``).
+
+    ``OSError`` is allowed because ``config.py`` raises exactly one — the
+    missing-password error, this family's most common first-run failure, whose
+    entire remedy is the env var name it carries. It also subsumes
+    ``FileNotFoundError``, ``PermissionError``, ``TimeoutError`` and
+    ``ConnectionError``, so exposure widens only to the remaining OS-level
+    subtypes.
+
+    Anything else is reduced to its type — an unplanned exception's text was
+    written for a developer reading a traceback, not for an agent choosing what
+    to do next, and it is the one that can carry credentials.
     """
     logger.error("Tool %s failed", tool, exc_info=True)
-    if isinstance(exc, (ValueError, FileNotFoundError, KeyError, NsxApiError)):
+    if isinstance(exc, (ValueError, FileNotFoundError, KeyError, OSError, NsxApiError)):
         return sanitize(str(exc), 300)
     return f"{type(exc).__name__}: operation failed."
 

@@ -149,10 +149,11 @@ def create_dfw_policy(
     _validate_id(policy_id, "policy_id")
     if category not in _VALID_CATEGORIES:
         raise ValueError(
-            f"Invalid category '{category}'. Must be one of: Ethernet, "
-            "Emergency, Infrastructure, Environment, Application. "
-            "Categories control DFW evaluation order (Ethernet first, "
-            "Application last); most app rules belong in Application."
+            "Invalid category. Must be one of: Ethernet, Emergency, "
+            "Infrastructure, Environment, Application. Category sets DFW "
+            "evaluation order (Ethernet first, Application last); most app "
+            "rules belong in Application. Run list_dfw_policies to see which "
+            f"categories this manager already uses. Got: '{category}'"
         )
     body: dict[str, Any] = {
         "display_name": sanitize(display_name),
@@ -203,7 +204,12 @@ def update_dfw_policy(
         body["stateful"] = stateful
 
     if not body:
-        raise ValueError("No fields provided to update.")
+        raise ValueError(
+            f"No fields provided to update policy '{policy_id}'. This is a "
+            "PATCH — specify at least one of: display_name, description, "
+            "sequence_number, stateful. Run get_dfw_policy to see the "
+            "policy's current values, then pass only the ones to change."
+        )
 
     result = client.patch(f"{_DFW_BASE}/{policy_id}", body)
     _log.info("Updated DFW policy: %s", policy_id)

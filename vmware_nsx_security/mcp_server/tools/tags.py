@@ -19,11 +19,18 @@ from vmware_nsx_security.mcp_server._shared import (
 def list_vm_tags(vm_display_name: str, target: Optional[str] = None) -> dict:
     """[READ] List all NSX tags applied to a virtual machine.
 
-    Looks up the VM by display name and returns all scope/value tag pairs.
-    Raises KeyError if no VM is found, ValueError if multiple VMs match.
+    Returns the list envelope: 'items' holds the VM's scope/tag pairs, and
+    'vm_id' carries the fabric UUID that apply_vm_tag and remove_vm_tag
+    require — call this first to obtain it. A VM's tags always arrive in one
+    response, so 'truncated' is always false and 'total' equals 'returned';
+    an empty 'items' means the VM genuinely carries no tags. Returns
+    {"error", "hint"} if no VM matches the name, or if several do.
 
     Args:
-        vm_display_name: Display name of the virtual machine.
+        vm_display_name: Exact vCenter display name of the virtual machine
+            (case-sensitive, no wildcards). This skill does not enumerate
+            VMs — run vmware-monitor's list_virtual_machines, or
+            vmware-aiops', to obtain one.
         target: Optional NSX Manager target name from config.
     """
     try:

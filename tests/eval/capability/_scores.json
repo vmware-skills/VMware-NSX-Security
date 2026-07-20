@@ -6,14 +6,6 @@
         "broken_chains": [
           {
             "companion_skill_named": [],
-            "entity": "vm",
-            "param": "vm_display_name",
-            "producer_on_surface": [],
-            "routed_in_description": [],
-            "tool": "list_vm_tags"
-          },
-          {
-            "companion_skill_named": [],
             "entity": "lport",
             "param": "src_lport_id",
             "producer_on_surface": [],
@@ -30,27 +22,19 @@
           "get_idps_status"
         ],
         "reachable_on_surface": 13,
-        "reachable_only_via_description": 3,
+        "reachable_only_via_description": 4,
         "required_entity_params": 18,
         "required_params_classified": "18/30",
         "tool_count": 21
       },
       "maximum": 18,
-      "pct": 88.9,
+      "pct": 94.4,
       "unit": "required entity params",
-      "value": 16
+      "value": 17
     },
     "entity_reachability_read_only": {
       "detail": {
         "broken_chains": [
-          {
-            "companion_skill_named": [],
-            "entity": "vm",
-            "param": "vm_display_name",
-            "producer_on_surface": [],
-            "routed_in_description": [],
-            "tool": "list_vm_tags"
-          },
           {
             "companion_skill_named": [],
             "entity": "traceflow",
@@ -67,15 +51,15 @@
           "get_idps_status"
         ],
         "reachable_on_surface": 5,
-        "reachable_only_via_description": 0,
+        "reachable_only_via_description": 1,
         "required_entity_params": 7,
         "required_params_classified": "7/7",
         "tool_count": 10
       },
       "maximum": 7,
-      "pct": 71.4,
+      "pct": 85.7,
       "unit": "required entity params",
-      "value": 5
+      "value": 6
     },
     "entry_point_availability": {
       "detail": {
@@ -89,71 +73,22 @@
     },
     "error_actionability": {
       "detail": {
-        "dead_end_count": 6,
-        "dead_end_errors": [
-          {
-            "message": "No target specified and no default target configured",
-            "missing": [
-              "names_artifact",
-              "names_input",
-              "states_remedy"
-            ],
-            "where": "connection.py:397"
-          },
-          {
-            "message": "NSX {} {} returned HTTP {}. {}",
-            "missing": [
-              "names_artifact",
-              "states_remedy"
-            ],
-            "where": "connection.py:260"
-          },
-          {
-            "message": "Invalid {} '{}': only alphanumerics, hyphens, underscores, and dots are allowed.",
-            "missing": [
-              "names_artifact",
-              "states_remedy"
-            ],
-            "where": "_validate.py:31"
-          },
-          {
-            "message": "No fields provided to update.",
-            "missing": [
-              "names_artifact",
-              "names_input",
-              "states_remedy"
-            ],
-            "where": "dfw_policy.py:206"
-          },
-          {
-            "message": "No fields provided to update.",
-            "missing": [
-              "names_artifact",
-              "names_input",
-              "states_remedy"
-            ],
-            "where": "dfw_rules.py:181"
-          },
-          {
-            "message": "No virtual machine found with display_name='{}'",
-            "missing": [
-              "names_artifact",
-              "states_remedy"
-            ],
-            "where": "tags.py:60"
-          }
+        "composed_hint_sites": [
+          "connection.py:265"
         ],
+        "dead_end_count": 0,
+        "dead_end_errors": [],
         "per_dimension_pct": {
-          "names_artifact": 20.8,
-          "names_input": 83.3,
-          "states_remedy": 75.0
+          "names_artifact": 87.5,
+          "names_input": 100.0,
+          "states_remedy": 100.0
         },
         "raise_sites": 24
       },
       "maximum": 72,
-      "pct": 59.7,
+      "pct": 95.8,
       "unit": "points",
-      "value": 43
+      "value": 69
     },
     "manifest_context_headroom": {
       "detail": {
@@ -164,15 +99,15 @@
           "update_dfw_policy": 271,
           "update_dfw_rule": 530
         },
-        "manifest_tokens": 5312,
-        "mean_tokens_per_tool": 253.0,
+        "manifest_tokens": 5391,
+        "mean_tokens_per_tool": 256.7,
         "reference_context": 16384,
         "tool_count": 21
       },
       "maximum": 16384,
-      "pct": 67.6,
+      "pct": 67.1,
       "unit": "tokens",
-      "value": 11072
+      "value": 10993
     },
     "parameter_documentation_coverage": {
       "detail": {
@@ -200,9 +135,9 @@
     },
     "read_only_manifest_saving": {
       "detail": {
-        "full_manifest_tokens": 5312,
+        "full_manifest_tokens": 5391,
         "full_tool_count": 21,
-        "gated_manifest_tokens": 1714,
+        "gated_manifest_tokens": 1793,
         "gated_tool_count": 10,
         "withheld_tools": [
           "apply_vm_tag",
@@ -218,8 +153,8 @@
           "update_dfw_rule"
         ]
       },
-      "maximum": 5312,
-      "pct": 67.7,
+      "maximum": 5391,
+      "pct": 66.7,
       "unit": "tokens",
       "value": 3598
     },
@@ -232,22 +167,38 @@
       "unit": "points",
       "value": 21
     },
+    "remedy_survives_truncation": {
+      "detail": {
+        "budget_chars": 300,
+        "over_budget": [],
+        "remedy_after_interpolation": [
+          "config.py:219",
+          "dfw_policy.py:207",
+          "dfw_policy.py:240",
+          "traceflow.py:86"
+        ]
+      },
+      "maximum": 24,
+      "pct": 100.0,
+      "unit": "messages",
+      "value": 24
+    },
     "teaching_error_rate": {
       "detail": {},
       "maximum": 24,
-      "pct": 20.8,
+      "pct": 87.5,
       "unit": "messages",
-      "value": 5
+      "value": 21
     },
     "tool_description_quality": {
       "detail": {
         "per_dimension_pct": {
           "args": 100.0,
-          "gotcha": 57.1,
+          "gotcha": 61.9,
           "marker": 100.0,
-          "next_hop": 23.8,
+          "next_hop": 28.6,
           "what": 57.1,
-          "when": 47.6
+          "when": 52.4
         },
         "tools_graded": 21,
         "weakest_tools": {
@@ -287,7 +238,7 @@
             "next_hop",
             "when"
           ],
-          "list_vm_tags": [
+          "run_traceflow": [
             "gotcha",
             "next_hop",
             "when"
@@ -295,22 +246,22 @@
         }
       },
       "maximum": 126,
-      "pct": 64.3,
+      "pct": 66.7,
       "unit": "points",
-      "value": 81
+      "value": 84
     },
     "tool_failure_payload_quality": {
       "detail": {
         "bare_string_error_lines": [],
-        "carries_hint": 11,
-        "dict_shaped": 11,
-        "error_return_sites": 11,
-        "hint_names_artifact": 11
+        "carries_hint": 21,
+        "dict_shaped": 21,
+        "error_return_sites": 21,
+        "hint_names_artifact": 21
       },
-      "maximum": 33,
+      "maximum": 63,
       "pct": 100.0,
       "unit": "checks",
-      "value": 33
+      "value": 63
     }
   }
 }
