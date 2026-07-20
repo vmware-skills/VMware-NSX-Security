@@ -18,19 +18,18 @@ def list_idps_profiles(
     """[READ] List IDPS profiles configured in NSX.
 
     Returns the list envelope: 'items' holds each profile's id,
-    display_name, profile_severity (comma-joined list), criteria
-    (filter_name/filter_value pairs such as ATTACK_TYPE or CVSS filters),
-    and overridden signature count, while 'returned'/'limit'/'total'/
-    'truncated'/'hint' state whether the listing is complete. Defaults to
-    the first 50 matches — use name_filter to narrow and offset to page on
-    large estates. 'total' is the real profile count on an unfiltered
-    listing and null when a name_filter is used.
+    display_name, profile_severity (comma-joined), criteria
+    (filter_name/filter_value pairs, e.g. ATTACK_TYPE or CVSS) and
+    overridden signature count; 'returned'/'limit'/'total'/'truncated'/
+    'hint' say whether the page is the whole answer — never read a full
+    page as complete, narrow with name_filter or page with offset.
+    Then get_idps_status for the signature-bundle version and IDS settings.
 
     Args:
-        target: Optional NSX Manager target name from config.
-        name_filter: Optional substring/glob match on profile display_name.
+        target: Optional NSX Manager target from config.
+        name_filter: Substring/glob match on profile display_name.
         limit: Max profiles to return (default 50).
-        offset: Number of matched profiles to skip (pagination).
+        offset: Matched profiles to skip (pagination).
     """
     try:
         from vmware_nsx_security.ops.idps import list_idps_profiles as _fn
@@ -46,12 +45,15 @@ def list_idps_profiles(
 def get_idps_status(target: Optional[str] = None) -> dict:
     """[READ] Get IDPS signature status and global IDS settings.
 
-    Returns 'signature_status' (scalar fields of the signature bundle
-    status resource, e.g. version/update state — field names vary by NSX
-    release) and 'settings' (auto_update, ids_events_to_syslog).
+    Returns one bundle, not an envelope: 'signature_status' (scalar fields
+    of the signature bundle status, e.g. version/update state — names vary
+    by NSX release) and 'settings' (auto_update, ids_events_to_syslog).
+    Use it first to confirm IDS is on and current, then list_idps_profiles
+    for the profiles. No per-signature or per-event detail, and
+    'signature_status' may be empty where IDS was never enabled.
 
     Args:
-        target: Optional NSX Manager target name from config.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.idps import get_idps_status as _fn

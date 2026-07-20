@@ -22,23 +22,26 @@ def run_traceflow(
 ) -> dict:
     """[WRITE] Run a Traceflow to trace a packet's path through the NSX overlay.
 
-    Injects a synthetic probe packet from the source logical port and
-    returns hop-by-hop observations including DFW rule hits and drop
-    reasons. The result reports operation_state (IN_PROGRESS / FINISHED /
-    FAILED) and observations discriminated by resource_type (e.g.
-    TraceflowObservationForwarded, TraceflowObservationDroppedLogical —
-    Dropped* entries carry reason and acl_rule_id).
+    Injects a synthetic probe from the source port. Returns traceflow_id,
+    operation_state (IN_PROGRESS / FINISHED / FAILED) and hop-by-hop
+    observations typed by resource_type; Dropped* ones carry reason and
+    acl_rule_id. Use it to find which DFW rule drops a flow, then
+    get_dfw_rule_stats on that rule. A FINISHED traceflow is deleted
+    server-side and its id 404s; only one still IN_PROGRESS at
+    timeout_seconds survives for get_traceflow_result to poll.
 
     Args:
-        src_lport_id: Source logical port ID (attachment UUID of the VM NIC).
-        src_ip: Source IP address for the probe packet.
-        dst_ip: Destination IP address.
-        protocol: IP protocol — TCP, UDP, or ICMP (default: TCP).
-        dst_port: Destination port for TCP/UDP probes (default: 80).
-        src_port: Source port for TCP/UDP probes (default: 1234).
-        ttl: IP TTL value (default: 64).
-        timeout_seconds: Maximum seconds to wait for completion (default: 20).
-        target: Optional NSX Manager target name from config.
+        src_lport_id: Source logical port ID — the VM NIC attachment UUID.
+            This skill does not enumerate ports; run vmware-nsx's
+            get_segment_port_for_vm to obtain one.
+        src_ip: Probe source IP.
+        dst_ip: Destination IP.
+        protocol: TCP, UDP or ICMP (default TCP).
+        dst_port: Destination port for TCP/UDP (default 80).
+        src_port: Source port for TCP/UDP (default 1234).
+        ttl: IP TTL (default 64).
+        timeout_seconds: Max seconds to wait (default 20).
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.traceflow import run_traceflow as _fn
@@ -60,12 +63,14 @@ def get_traceflow_result(traceflow_id: str, target: Optional[str] = None) -> dic
 
     Use this to check a previously initiated traceflow without waiting.
     Returns operation_state (IN_PROGRESS / FINISHED / FAILED) and
-    observations discriminated by resource_type; Dropped* observations
-    carry reason and acl_rule_id.
+    observations typed by resource_type; Dropped* ones carry reason and
+    acl_rule_id. Only a traceflow run_traceflow left IN_PROGRESS at its
+    timeout is still on the manager — a completed one is deleted
+    server-side and its id 404s here.
 
     Args:
         traceflow_id: Traceflow ID from a previous run_traceflow call.
-        target: Optional NSX Manager target name from config.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.traceflow import get_traceflow_result as _fn

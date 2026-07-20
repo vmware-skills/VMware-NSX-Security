@@ -24,19 +24,18 @@ def list_dfw_policies(
 ) -> dict:
     """[READ] List DFW security policies in the default domain.
 
-    Returns the list envelope: 'items' holds each policy's id, display_name,
-    category, sequence_number, stateful flag, and rule count, while
-    'returned'/'limit'/'total'/'truncated'/'hint' state whether the listing
-    is complete — a full page is never mistaken for the whole answer.
-    Defaults to the first 50 matches — use name_filter to narrow and offset
-    to page on large estates. 'total' is the real policy count on an
-    unfiltered listing and null when a name_filter is used.
+    Start here. Returns the list envelope: 'items' holds each policy's id,
+    display_name, category, sequence_number, stateful flag and rule count;
+    'returned'/'limit'/'total'/'truncated'/'hint' say whether the page is
+    the whole answer — never read a full page as complete, narrow with
+    name_filter or page with offset. Then get_dfw_policy for one policy's
+    detail, or list_dfw_rules for the rules inside.
 
     Args:
-        target: Optional NSX Manager target name from config. Uses default if omitted.
-        name_filter: Optional substring/glob match on policy display_name.
+        target: NSX Manager target name from config; default if omitted.
+        name_filter: Substring/glob match on policy display_name.
         limit: Max policies to return (default 50).
-        offset: Number of matched policies to skip (pagination).
+        offset: Matched policies to skip (pagination).
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import list_dfw_policies as _fn
@@ -52,9 +51,14 @@ def list_dfw_policies(
 def get_dfw_policy(policy_id: str, target: Optional[str] = None) -> dict:
     """[READ] Get full details of a single DFW security policy.
 
+    Returns one policy object, not an envelope: category,
+    sequence_number, stateful, scope and rule count. Use it once
+    list_dfw_policies has narrowed to one id — never a display name. Then
+    call list_dfw_rules for the rules inside.
+
     Args:
         policy_id: Policy identifier (e.g. 'app-tier-policy').
-        target: Optional NSX Manager target name from config.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import get_dfw_policy as _fn
@@ -86,16 +90,20 @@ def create_dfw_policy(
 ) -> dict:
     """[WRITE] Create a new DFW security policy.
 
+    Returns the created policy dict (id, path, category, ...), else
+    {"error", "hint"}. The policy is an empty container — rules must be
+    added afterwards with create_dfw_rule.
+
     Args:
-        policy_id: Unique policy ID (alphanumeric, hyphens, underscores).
-        display_name: Human-readable policy name.
-        category: Policy category — Ethernet, Emergency, Infrastructure,
-            Environment, or Application (default: Application). Controls
-            DFW evaluation order (Ethernet first, Application last).
-        sequence_number: Priority order; lower number = higher priority (default: 10).
-        stateful: Whether to track connection state (default: True).
+        policy_id: Unique policy id (alphanumerics, hyphens, underscores).
+        display_name: Human-readable name.
+        category: Ethernet, Emergency, Infrastructure, Environment or
+            Application (default Application); sets DFW evaluation order,
+            Ethernet first, Application last.
+        sequence_number: Priority; lower = higher priority (default 10).
+        stateful: Track connection state (default True).
         description: Optional description.
-        target: Optional NSX Manager target name from config.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import create_dfw_policy as _fn
@@ -133,13 +141,18 @@ def update_dfw_policy(
 ) -> dict:
     """[WRITE] Partially update a DFW security policy (PATCH — only provided fields change).
 
+    Returns the updated policy dict; omitted arguments keep their values,
+    so read them with get_dfw_policy first. Use it to rename or
+    re-prioritise the policy itself — to change a rule inside use
+    update_dfw_rule.
+
     Args:
         policy_id: ID of the policy to update.
-        display_name: New display name (optional).
-        description: New description (optional).
-        sequence_number: New sequence number (optional).
-        stateful: New stateful flag (optional).
-        target: Optional NSX Manager target name from config.
+        display_name: New display name.
+        description: New description.
+        sequence_number: New sequence number.
+        stateful: New stateful flag.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import update_dfw_policy as _fn
@@ -169,12 +182,13 @@ def update_dfw_policy(
 def delete_dfw_policy(policy_id: str, target: Optional[str] = None) -> dict:
     """[WRITE] Delete a DFW security policy.
 
-    Raises ValueError if the policy still contains active rules.
-    Delete all rules in the policy first before deleting the policy itself.
+    Returns {"status": "deleted", "message": ...}, else {"error", "hint"}.
+    Refuses if the policy still holds active rules: list them with
+    list_dfw_rules and clear each with delete_dfw_rule first.
 
     Args:
         policy_id: ID of the policy to delete.
-        target: Optional NSX Manager target name from config.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import delete_dfw_policy as _fn

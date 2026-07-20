@@ -25,18 +25,16 @@ def list_groups(
     """[READ] List NSX security groups in the default domain.
 
     Returns the list envelope: 'items' holds each group's id, display_name,
-    description, and expression count, while 'returned'/'limit'/'total'/
-    'truncated'/'hint' state whether the listing is complete — a full page is
-    never mistaken for the whole answer. Defaults to the first 50 matches —
-    use name_filter to narrow and offset to page on large estates. 'total' is
-    the real group count on an unfiltered listing and null when a name_filter
-    is used.
+    description and expression count; 'returned'/'limit'/'total'/
+    'truncated'/'hint' say whether the page is the whole answer — never
+    read a full page as complete, narrow with name_filter or page with
+    offset. Then get_group for one group's criteria and effective members.
 
     Args:
-        target: Optional NSX Manager target name from config.
-        name_filter: Optional substring/glob match on group display_name.
+        target: Optional NSX Manager target from config.
+        name_filter: Substring/glob match on group display_name.
         limit: Max groups to return (default 50).
-        offset: Number of matched groups to skip (pagination).
+        offset: Matched groups to skip (pagination).
     """
     try:
         from vmware_nsx_security.ops.security_group import list_groups as _fn
@@ -52,11 +50,14 @@ def list_groups(
 def get_group(group_id: str, target: Optional[str] = None) -> dict:
     """[READ] Get details of a security group including membership criteria and effective members.
 
-    Returns expression rules and up to 50 effective VirtualMachine members.
+    Returns one group object: its expression rules plus only the first 50
+    effective VirtualMachine members. Use it once list_groups has narrowed
+    to one id; membership is evaluated by NSX, so a tag written with
+    apply_vm_tag may take seconds to appear.
 
     Args:
         group_id: Group identifier (e.g. 'web-tier-vms').
-        target: Optional NSX Manager target name from config.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.security_group import get_group as _fn
@@ -89,23 +90,22 @@ def create_group(
 ) -> dict:
     """[WRITE] Create an NSX security group with optional membership criteria.
 
-    Multiple criteria are ORed together (NSX only permits AND between
-    same-member-type Conditions, so heterogeneous expression types must
-    join with OR):
-    - tag_scope / tag_value: include VMs matching the NSX tag
-      (Condition with pipe-delimited value "scope|tag")
-    - ip_addresses: include specific IP addresses or CIDRs
-    - segment_paths: include all VMs on specified segments
+    Returns the created group dict (id, path, expression, ...). Criteria
+    are ORed — NSX only permits AND between same-member-type Conditions:
+    tag_scope/tag_value matches VMs carrying that tag, ip_addresses
+    matches IPs or CIDRs, segment_paths every VM on those segments. Use it
+    before create_dfw_rule, which references the group path; confirm
+    members with get_group.
 
     Args:
-        group_id: Unique group identifier (alphanumeric, hyphens, underscores).
-        display_name: Human-readable group name.
+        group_id: Unique id (alphanumerics, hyphens, underscores).
+        display_name: Human-readable name.
         description: Optional description.
-        tag_scope: NSX tag scope for VM membership (e.g. 'env').
-        tag_value: NSX tag value for VM membership (e.g. 'production').
-        ip_addresses: List of IP addresses or CIDRs (e.g. ['10.0.1.0/24']).
-        segment_paths: List of NSX segment policy paths.
-        target: Optional NSX Manager target name from config.
+        tag_scope: NSX tag scope for membership (e.g. 'env').
+        tag_value: NSX tag value for membership (e.g. 'production').
+        ip_addresses: IP addresses or CIDRs (e.g. ['10.0.1.0/24']).
+        segment_paths: NSX segment policy paths.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.security_group import create_group as _fn
@@ -137,15 +137,17 @@ def create_group(
 def delete_group(group_id: str, target: Optional[str] = None) -> dict:
     """[WRITE] Delete an NSX security group.
 
-    Refuses deletion if any entity references the group, using NSX's own
-    group-associations dependency API. This covers every reference class:
-    DFW rules/policies, gateway-firewall policies, nested groups (another
-    group referencing this one), and service-insertion/IDS-IPS policies.
-    Also refuses if the reference check itself fails (fail-safe).
+    Returns {"status": "deleted", "message": ...}, else {"error", "hint"}.
+    Use it once get_group shows the group is unwanted. Refuses if anything
+    still references it (NSX's group-associations API covers DFW rules and
+    policies, gateway firewall, nested groups, service insertion), and
+    refuses if that check itself fails (fail-safe). When the refusal names
+    a DFW rule, retarget it with update_dfw_rule or drop it with
+    delete_dfw_rule first.
 
     Args:
         group_id: ID of the group to delete.
-        target: Optional NSX Manager target name from config.
+        target: Optional NSX Manager target from config.
     """
     try:
         from vmware_nsx_security.ops.security_group import delete_group as _fn

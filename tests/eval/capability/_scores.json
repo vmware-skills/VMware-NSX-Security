@@ -3,16 +3,7 @@
   "scores": {
     "entity_reachability_full": {
       "detail": {
-        "broken_chains": [
-          {
-            "companion_skill_named": [],
-            "entity": "lport",
-            "param": "src_lport_id",
-            "producer_on_surface": [],
-            "routed_in_description": [],
-            "tool": "run_traceflow"
-          }
-        ],
+        "broken_chains": [],
         "entry_points": [
           "list_dfw_policies",
           "create_dfw_policy",
@@ -22,15 +13,15 @@
           "get_idps_status"
         ],
         "reachable_on_surface": 13,
-        "reachable_only_via_description": 4,
+        "reachable_only_via_description": 5,
         "required_entity_params": 18,
         "required_params_classified": "18/30",
         "tool_count": 21
       },
       "maximum": 18,
-      "pct": 94.4,
+      "pct": 100.0,
       "unit": "required entity params",
-      "value": 17
+      "value": 18
     },
     "entity_reachability_read_only": {
       "detail": {
@@ -93,11 +84,11 @@
     "manifest_context_headroom": {
       "detail": {
         "heaviest_tools": {
-          "create_dfw_rule": 801,
-          "create_group": 425,
-          "run_traceflow": 370,
-          "update_dfw_policy": 271,
-          "update_dfw_rule": 530
+          "create_dfw_rule": 651,
+          "create_group": 419,
+          "run_traceflow": 383,
+          "update_dfw_policy": 291,
+          "update_dfw_rule": 541
         },
         "manifest_tokens": 5391,
         "mean_tokens_per_tool": 256.7,
@@ -122,10 +113,10 @@
       "detail": {
         "ceiling": 350,
         "over_ceiling": {
-          "create_dfw_rule": 801,
-          "create_group": 425,
-          "run_traceflow": 370,
-          "update_dfw_rule": 530
+          "create_dfw_rule": 651,
+          "create_group": 419,
+          "run_traceflow": 383,
+          "update_dfw_rule": 541
         }
       },
       "maximum": 21,
@@ -137,7 +128,7 @@
       "detail": {
         "full_manifest_tokens": 5391,
         "full_tool_count": 21,
-        "gated_manifest_tokens": 1793,
+        "gated_manifest_tokens": 1849,
         "gated_tool_count": 10,
         "withheld_tools": [
           "apply_vm_tag",
@@ -154,9 +145,9 @@
         ]
       },
       "maximum": 5391,
-      "pct": 66.7,
+      "pct": 65.7,
       "unit": "tokens",
-      "value": 3598
+      "value": 3542
     },
     "read_write_marker_coverage": {
       "detail": {
@@ -194,61 +185,28 @@
       "detail": {
         "per_dimension_pct": {
           "args": 100.0,
-          "gotcha": 61.9,
+          "gotcha": 100.0,
           "marker": 100.0,
-          "next_hop": 28.6,
-          "what": 57.1,
-          "when": 52.4
+          "next_hop": 100.0,
+          "what": 100.0,
+          "when": 100.0
         },
         "tools_graded": 21,
         "weakest_tools": {
-          "create_dfw_policy": [
-            "gotcha",
-            "next_hop",
-            "what"
-          ],
-          "create_group": [
-            "next_hop",
-            "what",
-            "when"
-          ],
-          "delete_group": [
-            "next_hop",
-            "what",
-            "when"
-          ],
-          "get_dfw_policy": [
-            "gotcha",
-            "next_hop",
-            "what",
-            "when"
-          ],
-          "get_dfw_rule_stats": [
-            "gotcha",
-            "next_hop",
-            "when"
-          ],
-          "get_group": [
-            "gotcha",
-            "next_hop",
-            "when"
-          ],
-          "get_idps_status": [
-            "gotcha",
-            "next_hop",
-            "when"
-          ],
-          "run_traceflow": [
-            "gotcha",
-            "next_hop",
-            "when"
-          ]
+          "apply_vm_tag": [],
+          "create_dfw_policy": [],
+          "create_dfw_rule": [],
+          "create_group": [],
+          "delete_dfw_policy": [],
+          "delete_dfw_rule": [],
+          "delete_group": [],
+          "get_dfw_policy": []
         }
       },
       "maximum": 126,
-      "pct": 66.7,
+      "pct": 100.0,
       "unit": "points",
-      "value": 84
+      "value": 126
     },
     "tool_failure_payload_quality": {
       "detail": {
