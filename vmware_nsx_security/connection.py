@@ -85,8 +85,19 @@ def _hint_for_status(status_code: int, path: str) -> str:
 class NsxClient:
     """REST client for a single NSX Manager."""
 
+    _target_name: str = ""
+    """Config key this client was built from, e.g. ``prod-nsx``.
+
+    Connection failures name this instead of the host they resolved to: the
+    operator edits config by key, and the raw failure text (host:port,
+    certificate subject) is not something ``_safe_error`` would redact. Declared
+    at class level so instances built with ``__new__`` — the test doubles that
+    skip ``__init__`` to avoid dialling out — still render a message.
+    """
+
     def __init__(
-        self, target: TargetConfig, password: str, username: str | None = None
+        self, target: TargetConfig, password: str, username: str | None = None,
+        *, target_name: str = "",
     ) -> None:
         """Initialise client and authenticate immediately.
 
@@ -96,8 +107,11 @@ class NsxClient:
             username: Resolved username (env var override, else config). The
                 caller resolves it alongside the password so both halves of the
                 credential come from the same read; omitted means use config.
+            target_name: Config key for this target, named by connection-failure
+                messages in place of the resolved host.
         """
         self._target = target
+        self._target_name = target_name
         self._password = password
         self._username = username or target.username
         self._base_url = f"https://{target.host}:{target.port}"
@@ -154,16 +168,28 @@ class NsxClient:
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
         except (httpx.TimeoutException, httpx.TransportError) as exc:
+            # Kept short: the base message already names verify_ssl and the
+            # config path, so this only has to say "it was the certificate".
+            # The old wording repeated both and pushed the whole message to 345
+            # characters, past the 300-char cap that then ate the target name.
             tls_hint = ""
             if "certificate" in str(exc).lower() or "ssl" in str(exc).lower():
                 tls_hint = (
-                    " This looks like a TLS certificate failure — for a "
-                    "self-signed lab manager set verify_ssl: false for this "
-                    "target in config.yaml (or re-run 'vmware-nsx-security init')."
+                    " This looks like a TLS certificate failure: set verify_ssl: "
+                    "false for a self-signed lab manager."
                 )
+            # The raw ``exc`` is deliberately not interpolated. ``_safe_error``
+            # passes ``NsxApiError`` through verbatim and ``sanitize`` redacts
+            # nothing, so a TLS failure would hand the agent the certificate
+            # subject and a DNS failure the resolved host:port. The full chain
+            # still reaches the operator: ``_safe_error`` logs it with
+            # ``exc_info``, and ``from exc`` keeps the cause attached.
+            # Authored text first, config key last — the cap truncates the tail.
             raise NsxApiError(
-                f"NSX session creation for {self._target.host} could not "
-                f"connect: {exc}. Check the host/port and network, then retry." + tls_hint,
+                "NSX session creation could not connect. Check the host, port and "
+                "verify_ssl for this target in ~/.vmware-nsx-security/config.yaml, "
+                f"then run 'vmware-nsx-security doctor'.{tls_hint} "
+                f"Target: '{self._target_name}'",
                 method="POST",
                 path="/api/session/create",
             ) from exc
@@ -238,11 +264,16 @@ class NsxClient:
                     attempt += 1
                     time.sleep(_RETRY_DELAY_SEC)
                     continue
+                # No raw ``exc``: see _create_session — it carries the resolved
+                # host:port (and the certificate subject on a TLS failure), and
+                # nothing downstream redacts it. Authored text first, the
+                # unbounded path last so the 300-char cap eats context, not the
+                # remedy.
                 raise NsxApiError(
-                    f"NSX {method} {path} could not connect. Check the "
-                    "host/port and network, then retry — run "
-                    "'vmware-nsx-security doctor' to test reachability and TLS "
-                    f"for this target. Detail: {exc}",
+                    "NSX could not connect. Check the host, port and network for "
+                    "this target in ~/.vmware-nsx-security/config.yaml, then run "
+                    "'vmware-nsx-security doctor' to test reachability and TLS. "
+                    f"Target: '{self._target_name}' ({method} {path})",
                     method=method,
                     path=path,
                 ) from exc
@@ -432,7 +463,7 @@ class ConnectionManager:
         # behind by a rotation would pair with the new password and fail.
         password = target_cfg.get_password(name)
         username = target_cfg.get_username(name)
-        client = NsxClient(target_cfg, password, username)
+        client = NsxClient(target_cfg, password, username, target_name=name)
         self._clients[name] = client
         return client
 

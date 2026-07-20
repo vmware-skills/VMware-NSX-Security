@@ -71,13 +71,20 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
             f"an exact VM name, then retry. Got: '{safe_name}'"
         )
     if len(vms) > 1:
-        names = [v.get("display_name", "") for v in vms]
+        # The match list comes from NSX and is unbounded — and every entry
+        # normally repeats the same display_name, so six duplicates pushed this
+        # message to 784 and ``sanitize``'s 300-char cap deleted "or
+        # remove_vm_tag directly" along with the list itself. De-duplicate,
+        # bound it, and put both interpolations after the remedy.
+        names = sorted({v.get("display_name", "") for v in vms})
+        shown = ", ".join(names[:3])
+        more = f" (+{len(names) - 3} more)" if len(names) > 3 else ""
         raise ValueError(
-            f"Multiple VMs share display_name='{safe_name}' — NSX cannot "
-            "resolve the tag owner from an ambiguous name. Run "
-            "vmware-monitor's list_virtual_machines to identify the intended "
-            "VM's instance UUID, then pass that UUID as vm_id to apply_vm_tag "
-            f"or remove_vm_tag directly. Matches: {names}"
+            f"{len(vms)} VMs in the NSX fabric share this display_name, so NSX "
+            "cannot resolve the tag owner. Run vmware-monitor's "
+            "list_virtual_machines to get the intended VM's instance UUID, then "
+            "pass that UUID as vm_id to apply_vm_tag or remove_vm_tag directly. "
+            f"Name: '{safe_name}'. Matches: {shown}{more}"
         )
 
     vm = vms[0]

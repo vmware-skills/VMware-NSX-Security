@@ -277,12 +277,20 @@ def delete_group(client: NsxClient, group_id: str) -> dict[str, str]:
             f"{sanitize(a.get('target_display_name') or a.get('path', 'unknown'))}"
             for a in associations
         ]
+        # The reference list comes from NSX and is unbounded: six references at
+        # ~40 characters each pushed this message to 574, so ``sanitize``'s
+        # 300-char cap deleted the closing "and retry" *and* the whole list the
+        # remedy pointed at ("each SecurityPolicy below"). Bound the list, and
+        # put every interpolation after the remedy so overflow costs context
+        # rather than the instruction.
+        shown = ", ".join(refs[:3])
+        more = f" (+{len(refs) - 3} more)" if len(refs) > 3 else ""
         raise ValueError(
-            f"Cannot delete group '{group_id}': {len(refs)} entity/entities "
-            "still reference it. Remove them first — run list_dfw_rules on "
-            "each SecurityPolicy below, then use update_dfw_rule to drop "
-            "this group from the rule's sources/destinations (or "
-            f"delete_dfw_rule), and retry. Referenced by: {refs}"
+            f"Cannot delete this security group: {len(refs)} entity/entities "
+            "still reference it. Run list_dfw_rules on each referencing "
+            "SecurityPolicy, then use update_dfw_rule to drop the group from "
+            "that rule's sources or destinations (or delete_dfw_rule), and "
+            f"retry. Group: '{group_id}'. Referenced by: {shown}{more}"
         )
 
     client.delete(f"{_GROUPS_BASE}/{group_id}")

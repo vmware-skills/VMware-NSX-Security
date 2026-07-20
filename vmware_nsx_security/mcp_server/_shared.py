@@ -11,13 +11,14 @@ module (``server.py``) under the 800-line cap (踩坑 #17).
 
 import logging
 import os
+import ssl
 from pathlib import Path
 from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
 from vmware_policy import sanitize
 
-from vmware_nsx_security.config import load_config
+from vmware_nsx_security.config import ConfigError, load_config
 from vmware_nsx_security.connection import ConnectionManager, NsxApiError
 from vmware_nsx_security.notify.audit import AuditLogger
 
@@ -40,19 +41,62 @@ def _safe_error(exc: Exception, tool: str) -> str:
     (e.g. "policy has active rules") and the connection layer's teaching errors
     (``NsxApiError``).
 
-    ``OSError`` is allowed because ``config.py`` raises exactly one — the
-    missing-password error, this family's most common first-run failure, whose
-    entire remedy is the env var name it carries. It also subsumes
+    The missing-password error — this family's most common first-run failure,
+    whose entire remedy is the env var name it carries — arrives as
+    ``ConfigError``, a narrow ``OSError`` subclass ``config.py`` raises on
+    purpose. Bare ``OSError`` is deliberately *not* here: it would also admit
+    ``socket.gaierror`` (the name that failed to resolve) and ``requests``-style
+    connection errors (the full ``scheme://host:port/path``), neither of which
+    is authored text. ``sanitize`` strips control characters and truncates; it
+    redacts nothing, so breadth here is exposure.
+
     ``FileNotFoundError``, ``PermissionError``, ``TimeoutError`` and
-    ``ConnectionError``, so exposure widens only to the remaining OS-level
-    subtypes.
+    ``ConnectionError`` stay: each is narrow, each was already reachable through
+    the ``OSError`` entry this replaces, and their text describes the operator's
+    own environment rather than the manager's response. One is raised here
+    deliberately — ``FileNotFoundError`` for a missing config file.
+
+    ``ssl.SSLError`` is reduced *before* the allowlist is consulted, because an
+    allowlist structurally cannot say "not this one":
+    ``ssl.SSLCertVerificationError`` inherits from ``ValueError`` as well as
+    ``OSError``, and ``ValueError`` has been allowed since long before any of
+    this. Its message quotes the certificate subject and the hostname. Only
+    ``ssl.SSLError`` is pre-checked — ``socket.gaierror`` and
+    ``ConnectionRefusedError`` have ``OSError`` as their only base, so removing
+    ``OSError`` already reduces them, and naming them here would make the guard
+    promise more than it does.
+
+    That pre-check cannot fire on this skill's own transport path, and saying so
+    matters more than the guard does: httpx raises ``httpx.ConnectError`` for a
+    TLS failure, which is not an ``ssl.SSLError`` subclass, and
+    ``connection.py`` translates it into an allowlisted ``NsxApiError``. What
+    keeps the certificate subject out of agent context here is that
+    ``connection.py`` no longer interpolates the raw exception into that
+    message. The pre-check is defence in depth for an ``ssl.SSLError`` arriving
+    by some other route, and is verified against a constructed one.
+
+    The rule and the allowlist are kept identical to VMware-NSX's: the two
+    skills share this connection and config design, and a pattern fixed in one
+    repo and not the other is this family's most-repeated defect (踩坑 #21).
 
     Anything else is reduced to its type — an unplanned exception's text was
     written for a developer reading a traceback, not for an agent choosing what
     to do next, and it is the one that can carry credentials.
     """
     logger.error("Tool %s failed", tool, exc_info=True)
-    if isinstance(exc, (ValueError, FileNotFoundError, KeyError, OSError, NsxApiError)):
+    if isinstance(exc, ssl.SSLError):
+        return f"{type(exc).__name__}: operation failed."
+    _passthrough = (
+        ValueError,
+        FileNotFoundError,
+        KeyError,
+        PermissionError,
+        TimeoutError,
+        ConnectionError,
+        ConfigError,
+        NsxApiError,
+    )
+    if isinstance(exc, _passthrough):
         return sanitize(str(exc), 300)
     return f"{type(exc).__name__}: operation failed."
 
