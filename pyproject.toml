@@ -35,6 +35,12 @@ vmware-nsx-security-mcp = "vmware_nsx_security.mcp_server.server:main"
 [tool.hatch.build.targets.wheel]
 packages = ["vmware_nsx_security"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "capability: Capability evals — scored trends, not pass/fail gates. Excluded from the default run (they measure quality, so <100% is expected and must not read as a broken build). Run them with: pytest -m capability",
+]
+addopts = "-m 'not capability'"
 [dependency-groups]
 dev = [
     "pytest>=8.0,<10.0",
