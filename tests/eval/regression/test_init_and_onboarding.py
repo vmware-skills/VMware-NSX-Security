@@ -122,7 +122,7 @@ def test_session_create_failure_is_teaching() -> None:
             NsxClient(TargetConfig(host="nsx.example.com", username="admin"), "p@ss!w0rd")
 
     msg = str(exc.value)
-    assert "VMWARE_<TARGET>_PASSWORD" in msg
+    assert "VMWARE_NSX_SECURITY_<TARGET>_PASSWORD" in msg
     assert "~/.vmware-nsx-security/.env" in msg
     assert "config.yaml" in msg  # names where the username lives
     # special-char passwords are handled by form-body — must not be blamed (踩坑 #21)

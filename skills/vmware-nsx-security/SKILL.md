@@ -11,10 +11,10 @@ installer:
   package: vmware-nsx-security
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["VMWARE_NSX_SECURITY_CONFIG"],"bins":["vmware-nsx-security"],"config":["~/.vmware-nsx-security/config.yaml","~/.vmware-nsx-security/.env"]},"optional":{"env":["VMWARE_<TARGET>_PASSWORD","VMWARE_READ_ONLY","VMWARE_NSX_SECURITY_READ_ONLY","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy"]},"primaryEnv":"VMWARE_NSX_SECURITY_CONFIG","homepage":"https://github.com/zw008/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"env":["VMWARE_NSX_SECURITY_CONFIG"],"bins":["vmware-nsx-security"],"config":["~/.vmware-nsx-security/config.yaml","~/.vmware-nsx-security/.env"]},"optional":{"env":["VMWARE_NSX_SECURITY_<TARGET>_PASSWORD","VMWARE_NSX_SECURITY_<TARGET>_USERNAME","VMWARE_READ_ONLY","VMWARE_NSX_SECURITY_READ_ONLY","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy"]},"primaryEnv":"VMWARE_NSX_SECURITY_CONFIG","homepage":"https://github.com/zw008/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
 compatibility: >
   vmware-policy auto-installed as Python dependency (provides @vmware_tool decorator and audit logging). All write operations audited to ~/.vmware/audit.db.
-  Credentials: Each NSX Manager target requires a per-target password env var in ~/.vmware-nsx-security/.env following the pattern VMWARE_<TARGET_NAME_UPPER>_PASSWORD. Passwords are never logged or echoed.
+  Credentials: Each NSX Manager target requires a per-target password env var in ~/.vmware-nsx-security/.env following the pattern VMWARE_NSX_SECURITY_<TARGET_NAME_UPPER>_PASSWORD. Passwords are never logged or echoed.
   Destructive operations: DFW policy delete checks for active rules, security group delete checks for references. IDS/IPS config changes require double confirmation. Traceflow is read-only.
   No webhooks, no outbound network calls, no guest operations. Local only: stdio MCP + NSX Policy API (HTTPS 443).
   Transitive dependencies: Only vmware-policy (audit/policy). No post-install scripts or background services.

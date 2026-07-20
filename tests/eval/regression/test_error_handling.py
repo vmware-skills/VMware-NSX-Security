@@ -70,7 +70,9 @@ def test_session_create_failure_raises_credential_hint() -> None:
         with pytest.raises(NsxApiError) as exc:
             NsxClient(_target(), "wrong")
     msg = str(exc.value)
-    assert "VMWARE_<TARGET>_PASSWORD" in msg
+    # Must name the var the loader actually reads, or the hint sends the user
+    # to set a variable that will never be looked up.
+    assert "VMWARE_NSX_SECURITY_<TARGET>_PASSWORD" in msg
     assert exc.value.status_code == 403
 
 

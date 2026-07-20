@@ -69,7 +69,7 @@ def _hint_for_status(status_code: int, path: str) -> str:
     if status_code == 400:
         return "Bad request — check the parameters and payload for this call."
     if status_code == 401:
-        return "Authentication failed — check the username and the VMWARE_<TARGET>_PASSWORD env var for this target."
+        return "Authentication failed — check the username and the VMWARE_NSX_SECURITY_<TARGET>_PASSWORD env var for this target."
     if status_code == 403:
         return (
             "Permission denied — the account lacks the required NSX RBAC role "
@@ -85,15 +85,21 @@ def _hint_for_status(status_code: int, path: str) -> str:
 class NsxClient:
     """REST client for a single NSX Manager."""
 
-    def __init__(self, target: TargetConfig, password: str) -> None:
+    def __init__(
+        self, target: TargetConfig, password: str, username: str | None = None
+    ) -> None:
         """Initialise client and authenticate immediately.
 
         Args:
             target: Connection target configuration.
             password: Plaintext password (sourced from env var).
+            username: Resolved username (env var override, else config). The
+                caller resolves it alongside the password so both halves of the
+                credential come from the same read; omitted means use config.
         """
         self._target = target
         self._password = password
+        self._username = username or target.username
         self._base_url = f"https://{target.host}:{target.port}"
         self._token: str | None = None
 
@@ -137,7 +143,7 @@ class NsxClient:
         _SAFE = "!)*-._~"
         body = (
             "j_username="
-            + quote(self._target.username, safe=_SAFE)
+            + quote(self._username, safe=_SAFE)
             + "&j_password="
             + quote(self._password, safe=_SAFE)
         )
@@ -165,7 +171,7 @@ class NsxClient:
             raise NsxApiError(
                 f"NSX session creation for {self._target.host} failed with "
                 f"HTTP {resp.status_code}. Check the username in config.yaml "
-                "and the VMWARE_<TARGET>_PASSWORD env var in "
+                "and the VMWARE_NSX_SECURITY_<TARGET>_PASSWORD env var in "
                 "~/.vmware-nsx-security/.env — wrong credentials are the "
                 "usual cause. Special characters in the password are handled "
                 "via form-body auth, so they are not the issue. Run "
@@ -404,8 +410,11 @@ class ConnectionManager:
             available = ", ".join(self._config.targets.keys())
             raise ValueError(f"Target '{name}' not found. Available: {available}")
 
+        # Resolve both halves of the credential together — a username left
+        # behind by a rotation would pair with the new password and fail.
         password = target_cfg.get_password(name)
-        client = NsxClient(target_cfg, password)
+        username = target_cfg.get_username(name)
+        client = NsxClient(target_cfg, password, username)
         self._clients[name] = client
         return client
 
