@@ -7,8 +7,6 @@
 
 VMware NSX DFW microsegmentation and security MCP skill — 21 tools for distributed firewall policies/rules, security groups, VM tags, Traceflow packet tracing, and IDPS.
 
-- **Read-only mode** (v1.8.0) — one env var (`VMWARE_READ_ONLY=true`) strips all 11 write tools (DFW policy/rule writes, security groups, VM tags, Traceflow injection) from the MCP registry at startup, leaving the 10 read tools; ideal for audits, PoCs, and untrusted/local models. See [Read-Only Mode](#read-only-mode).
-
 > **Companion skills**: [vmware-nsx](https://github.com/zw008/VMware-NSX) (networking), [vmware-aiops](https://github.com/zw008/VMware-AIops) (VM lifecycle), [vmware-monitor](https://github.com/zw008/VMware-Monitor) (monitoring)
 
 ## Quick Start
@@ -26,28 +24,33 @@ chmod 600 ~/.vmware-nsx-security/.env
 vmware-nsx-security doctor
 ```
 
-## Read-Only Mode
+### Offline / Air-Gapped Install (from source)
 
-A prompt instruction is advisory — a model can ignore it. Read-only mode is structural: set `VMWARE_READ_ONLY=true` and all 11 write tools (DFW policy and rule create-update-delete, security group create/delete, VM tag apply/remove, Traceflow packet injection) are removed from the MCP registry at startup — `list_tools()` never offers them, so the model cannot call what it cannot see. The 10 read tools remain, including DFW rule stats and IDS/IPS profile and signature inspection. Off by default, and fail-closed: if the mode is requested but cannot be guaranteed, the server refuses to start.
+This project uses the modern PEP 517 build system (hatchling), so there is **no
+`setup.py`** by design — that is expected, not a missing file. If you cloned the
+source and hit `ERROR: File "setup.py" or "setup.cfg" not found ... editable mode
+currently requires a setuptools-based build`, your `pip` is older than 21.3 and
+cannot do an *editable* (`-e`) install with a non-setuptools backend. Editable
+mode is a developer convenience, not needed to run the tool — do one of:
 
-Three ways to enable:
+```bash
+# From the source tree — a normal (non-editable) install builds a wheel:
+pip install .              # NOT  pip install -e .
 
-```json
-{
-  "mcpServers": {
-    "vmware-nsx-security": {
-      "command": "vmware-nsx-security",
-      "args": ["mcp"],
-      "env": { "VMWARE_READ_ONLY": "true" }
-    }
-  }
-}
+# ...or upgrade pip first, and editable works too:
+pip install --upgrade pip && pip install -e .
 ```
 
-- Per-skill override: `VMWARE_NSX_SECURITY_READ_ONLY=true` (takes precedence over the family-wide `VMWARE_READ_ONLY`)
-- Config alternative: `read_only: true` in `~/.vmware-nsx-security/config.yaml`
+For a **truly air-gapped host**, build the wheels on a connected machine and copy
+them over — the target then needs no network:
 
-Precedence: per-skill env → family env → config → off. Startup logs list exactly which tools were withheld.
+```bash
+# On a connected machine, collect this package + its dependencies as wheels:
+pip wheel . -w dist        # → dist/*.whl   (or: uv build, for just this package)
+
+# Copy dist/ to the air-gapped host, then install offline:
+pip install --no-index --find-links dist vmware-nsx-security
+```
 
 ## What It Does
 

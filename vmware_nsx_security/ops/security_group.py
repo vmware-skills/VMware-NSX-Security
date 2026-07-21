@@ -29,6 +29,10 @@ _log = logging.getLogger("vmware-nsx-security.security_group")
 
 _GROUPS_BASE = "/policy/api/v1/infra/domains/default/groups"
 
+# How many effective members ``get_group`` returns. A production group can hold
+# thousands; the sample keeps one group's detail from filling agent context.
+_MEMBER_SAMPLE = 50
+
 
 # ---------------------------------------------------------------------------
 # Group list / get
@@ -91,8 +95,10 @@ def get_group(client: NsxClient, group_id: str) -> dict:
         group_id: Group identifier (e.g. 'web-tier-vms').
 
     Returns:
-        Group detail dict with id, display_name, expression rules,
-        and member paths (up to 50 effective members).
+        Group detail dict with id, display_name and expression rules.
+        ``member_count`` is the group's real size; ``members`` is the family
+        envelope around a sample of at most ``_MEMBER_SAMPLE`` of them, so a
+        withheld remainder is stated rather than left to be inferred.
     """
     _validate_id(group_id, "group_id")
     g = client.get(f"{_GROUPS_BASE}/{group_id}")
@@ -107,15 +113,25 @@ def get_group(client: NsxClient, group_id: str) -> dict:
         member_data = client.get(
             f"{_GROUPS_BASE}/{group_id}/members/virtual-machines"
         )
+        fetched = member_data.get("results", []) or []
+        # Size the group BEFORE sampling it. Counting the sample reported 50
+        # for a 500-member group — not a missing total but a wrong one, and a
+        # plausible-looking one, so nothing about the answer invited a second
+        # look. The wire's ListResult carries the collection's real size, and
+        # the page just fetched already holds it (the ``total_sink`` idea in
+        # vmware_nsx/connection.py, without the round trip ``get_count``
+        # would add). Builds that omit the field leave the fetched page
+        # length as the honest stand-in — still measured before the slice.
+        wire_count = member_data.get("result_count")
+        member_count = wire_count if isinstance(wire_count, int) else len(fetched)
         members = [
             {
                 "id": sanitize(m.get("external_id", "")),
                 "display_name": sanitize(m.get("display_name", "")),
                 "type": "VirtualMachine",
             }
-            for m in member_data.get("results", [])[:50]
+            for m in fetched[:_MEMBER_SAMPLE]
         ]
-        member_count = len(members)
     except Exception as exc:
         _log.warning("Could not fetch members for group %s: %s", group_id, exc)
         member_count = None
@@ -129,7 +145,7 @@ def get_group(client: NsxClient, group_id: str) -> dict:
         "tags": g.get("tags", []),
         "path": sanitize(g.get("path", "")),
         "member_count": member_count,
-        "members": members,
+        "members": paginated(members, limit=_MEMBER_SAMPLE, total=member_count),
         "_revision": g.get("_revision"),
     }
     if members_error is not None:

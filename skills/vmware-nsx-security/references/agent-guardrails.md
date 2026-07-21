@@ -32,55 +32,12 @@ These are structural, so it cannot.
 
 | Guardrail you would otherwise prompt for | Now enforced by |
 |---|---|
-| "Work exclusively in read-only mode and never modify anything" | **Read-only mode.** Set `VMWARE_READ_ONLY=true` and all 11 write tools are removed from the registry at startup, leaving the 10 reads. `list_tools()` never offers them, so the model cannot call what it cannot see. |
-| "Never create, edit or delete a DFW rule, policy, group or tag" | Same gate. There is no `create_dfw_rule`, no `delete_dfw_policy`, no `apply_vm_tag` to reach. |
-| "Do not inject test traffic into the production estate" | Same gate — `run_traceflow` is classified as a **write** precisely because it injects a probe packet, so a read-only deployment cannot run one. This is not obvious from the tool's name, and a prompt rule about it is easy for a small model to forget. |
 | "Check whether a group is used anywhere before deleting it" | **`delete_group` scans** rule sources, destinations, applied-to scope and policy scope, and refuses when referenced. It also refuses when the scan itself fails, rather than assuming the group is unused. |
 | "Do not delete a policy that still has rules in it" | **`delete_dfw_policy` refuses** while active rules exist. |
 | "Use explicit limits for queries that may return large amounts of data" | **The list envelope.** `list_dfw_policies`, `list_dfw_rules`, `list_groups` and `list_idps_profiles` return `{items, returned, limit, total, truncated, hint}`, so the model reads truncation instead of guessing at it. A 50-row default page and a whole estate look identical without it. |
 | "If a listing came back empty, say so rather than claiming the call failed" | Same envelope. Empty `items` with `truncated: false` means checked-and-none — a stated result, not a silence the model has to interpret. Note `total` is `null` for name-filtered and capped listings; a `null` total with `truncated: true` means "there may be more", so page with `offset` to confirm. |
 | "Log every state change you make" | **The `@vmware_tool` decorator.** Every write is recorded to `~/.vmware/audit.db` before the model sees the result, and policy rules are evaluated ahead of execution. |
-| "Ask a human before doing something irreversible in production" | **Policy.** A target declared `environment: production` requires a named approver (`VMWARE_AUDIT_APPROVED_BY`) for irreversible work. |
-
-### Turning read-only mode on
-
-One variable covers every skill in the family:
-
-```json
-{
-  "mcpServers": {
-    "vmware-nsx-security": {
-      "command": "vmware-nsx-security",
-      "args": ["mcp"],
-      "env": { "VMWARE_READ_ONLY": "true" }
-    }
-  }
-}
-```
-
-Per-skill override — useful when this skill alone should stay writable:
-
-```bash
-VMWARE_READ_ONLY=true                 # whole family read-only
-VMWARE_NSX_SECURITY_READ_ONLY=false   # …except the firewall
-```
-
-Or permanently, in `~/.vmware-nsx-security/config.yaml`:
-
-```yaml
-read_only: true
-```
-
-Precedence is per-skill env → family env → config file → off. The startup log
-lists exactly which tools were withheld, and `vmware-nsx-security doctor`
-reports the resolved state and its source. An unparseable value
-(`VMWARE_READ_ONLY=ture`) enables read-only mode rather than silently ignoring
-the typo.
-
-A blocked tool is a lockdown, not a fault. When a write tool is missing from
-`list_tools()`, the model should name the operation it cannot perform and say
-an operator must clear the switch — not retry, and not go looking for a
-different tool that achieves the same change.
+| "Block state-changing writes against a production target" | **Policy.** An opt-in environment-scoped `deny` rule in `~/.vmware/rules.yaml` matches a target's `environment:` label and refuses matching writes before execution. |
 
 ---
 
@@ -141,8 +98,6 @@ your agent's instruction block.
 
 ## Writes in vmware-nsx-security
 
-- A write tool missing from the tool list means read-only mode is on. Name the
-  blocked operation and stop. Do not retry and do not substitute another tool.
 - run_traceflow is a write: it injects a probe packet. Do not call it to
   "just check" something.
 - Sequence number decides which rule matches first. State the sequence you are
@@ -151,8 +106,9 @@ your agent's instruction block.
   Read get_group before assuming what a group contains.
 - remove_vm_tag can change dynamic group membership, and therefore which rules
   apply to a VM. Say so before proposing it.
-- Group effective members are capped at 50 in get_group. Do not report that
-  count as the group's size.
+- get_group returns at most 50 effective members. member_count is the group's
+  real size, and members.truncated says whether the sample withheld any — read
+  those two rather than counting members.items.
 ```
 
 ---
@@ -169,7 +125,7 @@ checklist when evaluating any local model against these skills:
 | Adds generic recommendations unsupported by results | The "analysis discipline" rules. Firewall output attracts invented advice ("consider tightening this rule") more than anything else in the family. |
 | Drops requested fields or reorders results | State the required fields and ordering in the request itself. Rule order is semantic here, not cosmetic. |
 | Multi-tool workflows take 30–50s end to end | `get_dfw_policy` and `get_group` each answer a whole question in one call. Fetch the policy once and read its rules from that result rather than looping. |
-| Calls `run_traceflow` believing it to be a read | The rule above, and read-only mode, which withholds it. Its name suggests a query; its effect is an injected packet. |
+| Calls `run_traceflow` believing it to be a read | The rule above. Its name suggests a query; its effect is an injected packet. |
 | Reads a zero hit count as "this rule is unused" and proposes deleting it | The "zero hit count is not proof" rule. A new rule has zero hits by construction. |
 | Summarises ALLOW/DROP into prose and inverts the meaning | The "never render ALLOW as allowed" rule. Keep the enum verbatim. |
 | Retries a refused deletion, or works around it by deleting the references first | The refusals are guards. Report the reason and let a human decide. |

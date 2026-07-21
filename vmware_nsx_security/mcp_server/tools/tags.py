@@ -23,7 +23,9 @@ def list_vm_tags(vm_display_name: str, target: Optional[str] = None) -> dict:
     'vm_id' the fabric UUID apply_vm_tag and remove_vm_tag require — call
     this first to get it. Tags always arrive in one response, so
     'truncated' is always false and empty 'items' means the VM really has
-    no tags. Returns {"error", "hint"} if no VM matches, or several do.
+    no tags. 'tags' is a deprecated pre-1.8.0 alias of 'items', removed in
+    2.0 — read 'items'. Returns {"error", "hint"} if no VM matches, or
+    several do.
 
     Args:
         vm_display_name: Exact vCenter display name (case-sensitive, no

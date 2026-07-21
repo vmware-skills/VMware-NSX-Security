@@ -52,6 +52,17 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
         short tag list here means the VM really has that many tags, not that
         the listing stopped early.
 
+    .. deprecated:: 1.8.6
+       ``tags`` is a compatibility alias for ``items`` and will be removed in
+       2.0. Until v1.8.0 this function returned
+       ``{vm_id, display_name, power_state, tags}``; the envelope renamed
+       ``tags`` to ``items``, and because the payload was already a keyed dict
+       the break was silent — ``result.get("tags", [])`` started returning
+       ``[]``, which reads as "this VM is untagged" rather than as a failure,
+       and an untagged VM is exactly what a microsegmentation check is looking
+       for. Both keys are the *same* list object, so they cannot drift.
+       Migrate to ``items``.
+
     Raises:
         KeyError: If no VM with that display name is found.
         ValueError: If multiple VMs share the same display name.
@@ -89,7 +100,7 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
 
     vm = vms[0]
     tags = vm.get("tags", [])
-    return paginated(
+    envelope = paginated(
         tags,
         limit=None,
         total=len(tags),
@@ -97,6 +108,9 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
         display_name=sanitize(vm.get("display_name", "")),
         power_state=vm.get("power_state", ""),
     )
+    # Deprecated alias for pre-v1.8.0 callers; removed in 2.0. Same list object
+    # as ``items`` — a copy would let the two drift.
+    return {**envelope, "tags": envelope["items"]}
 
 
 # ---------------------------------------------------------------------------

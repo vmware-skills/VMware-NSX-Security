@@ -11,7 +11,7 @@ installer:
   package: vmware-nsx-security
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["VMWARE_NSX_SECURITY_CONFIG"],"bins":["vmware-nsx-security"],"config":["~/.vmware-nsx-security/config.yaml","~/.vmware-nsx-security/.env"]},"optional":{"env":["VMWARE_NSX_SECURITY_<TARGET>_PASSWORD","VMWARE_NSX_SECURITY_<TARGET>_USERNAME","VMWARE_READ_ONLY","VMWARE_NSX_SECURITY_READ_ONLY","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy"]},"primaryEnv":"VMWARE_NSX_SECURITY_CONFIG","homepage":"https://github.com/zw008/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"env":["VMWARE_NSX_SECURITY_CONFIG"],"bins":["vmware-nsx-security"],"config":["~/.vmware-nsx-security/config.yaml","~/.vmware-nsx-security/.env"]},"optional":{"env":["VMWARE_NSX_SECURITY_<TARGET>_PASSWORD","VMWARE_NSX_SECURITY_<TARGET>_USERNAME","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy"]},"primaryEnv":"VMWARE_NSX_SECURITY_CONFIG","homepage":"https://github.com/zw008/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
 compatibility: >
   vmware-policy auto-installed as Python dependency (provides @vmware_tool decorator and audit logging). All write operations audited to ~/.vmware/audit.db.
   Credentials: Each NSX Manager target requires a per-target password env var in ~/.vmware-nsx-security/.env following the pattern VMWARE_NSX_SECURITY_<TARGET_NAME_UPPER>_PASSWORD. Passwords are never logged or echoed.
@@ -147,6 +147,8 @@ vmware-nsx-security group list --target nsx-lab
 | Cloud models (Claude, GPT-4o) | Either | MCP gives structured JSON I/O |
 | Automated pipelines | **MCP** | Type-safe parameters, structured output |
 
+Running with local or small models? See [`references/agent-guardrails.md`](references/agent-guardrails.md) for explicit operating rules.
+
 ## MCP Tools (21 — 10 read, 11 write)
 
 All MCP tools accept an optional `target` parameter.
@@ -184,16 +186,6 @@ the scan proved it: it is the real count on an unfiltered listing that stayed un
 | | `get_traceflow_result` | Read | Check operation_state/observations of an existing traceflow |
 | IDPS | `list_idps_profiles` | Read | List IDPS profiles with severity and filter criteria |
 | | `get_idps_status` | Read | Get IDPS signature status + global IDS settings (auto_update, syslog export) |
-
-## Read-Only Mode
-
-If a write tool described above is absent from `list_tools()`, this deployment is in
-read-only mode: `VMWARE_READ_ONLY=true` (or `VMWARE_NSX_SECURITY_READ_ONLY`, or
-`read_only: true` in config.yaml) withholds all 11 write tools at start-up, leaving the 10
-read tools. That is a deliberate lockdown, not a fault — do not retry, and do not look for
-another tool that achieves the same change. Note `run_traceflow` is among them: injecting a
-probe packet counts as a write. Name the blocked operation and say an operator must clear
-the switch and restart the server. Read tools are unaffected. Running with local or small models? See [`references/agent-guardrails.md`](references/agent-guardrails.md).
 
 ## CLI Quick Reference
 
@@ -267,27 +259,6 @@ A newly created rule will have zero hit counts until traffic matches it. If expe
 Password variable convention: `VMWARE_NSX_SECURITY_<TARGET_UPPER>_PASSWORD`
 where hyphens are replaced by underscores. For target `nsx-prod`:
 `VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD`. Check `~/.vmware-nsx-security/.env`.
-
-### "target does not declare which environment it is" on a write
-
-Policy scopes its rules by environment ("irreversible work in production needs a second person"), and it reads that from an explicit `environment:` declaration on each target — not from the target's name. A target that declares nothing counts as *unknown*:
-
-```
-delete_dfw_policy ran against a target that declares no environment. A future
-release will REFUSE this. Add 'environment: <name>' to that target in the
-skill's config.yaml.
-```
-
-Today this is a **warning only** — the operation still runs. The next major release refuses it, so declare it now and that upgrade is a no-op:
-
-```yaml
-targets:
-  nsx-prod:
-    host: nsx-manager.example.com
-    environment: production   # production | staging | lab | your own label
-```
-
-Read-only tools are never affected — listing DFW policies and rules, group membership, IDS/IPS status and Traceflow work untouched whether or not a target declares anything. Once declared, a target labelled `production` additionally requires a named approver (`VMWARE_AUDIT_APPROVED_BY`) for irreversible work; other labels change nothing beyond the risk tier recorded in the audit log. Run `vmware-audit policy` to see the rules in force.
 
 ### `invalid peer certificate: UnknownIssuer` (uvx)
 

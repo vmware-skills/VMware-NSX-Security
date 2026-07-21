@@ -50,10 +50,13 @@ def list_groups(
 def get_group(group_id: str, target: Optional[str] = None) -> dict:
     """[READ] Get details of a security group including membership criteria and effective members.
 
-    Returns one group object: its expression rules plus only the first 50
-    effective VirtualMachine members. Use it once list_groups has narrowed
-    to one id; membership is evaluated by NSX, so a tag written with
-    apply_vm_tag may take seconds to appear.
+    Returns one group object: its expression rules, member_count (the group's
+    real size), and members — an envelope holding at most the first 50
+    effective VirtualMachine members, whose truncated flag says whether more
+    were withheld. Report member_count as the size; counting members.items
+    reports the sample instead. Use it once list_groups has narrowed to one
+    id; membership is evaluated by NSX, so a tag written with apply_vm_tag may
+    take seconds to appear.
 
     Args:
         group_id: Group identifier (e.g. 'web-tier-vms').

@@ -6,8 +6,6 @@
 
 VMware NSX DFW 微分段与安全管理 MCP skill — 21 个工具，涵盖分布式防火墙策略与规则、安全组、VM 标签、Traceflow 数据包追踪和 IDPS。
 
-- **只读模式**（v1.8.0）— 一个环境变量（`VMWARE_READ_ONLY=true`）即可在启动时把全部 11 个写工具（DFW 策略/规则写操作、安全组、VM 标签、Traceflow 数据包注入）从 MCP 注册表中移除，仅保留 10 个只读工具；适合审计、PoC 演示和不可信/本地模型场景。详见[只读模式](#只读模式)。
-
 > **配套 skill**：[vmware-nsx](https://github.com/zw008/VMware-NSX)（网络）、[vmware-aiops](https://github.com/zw008/VMware-AIops)（VM 生命周期）、[vmware-monitor](https://github.com/zw008/VMware-Monitor)（监控）
 
 ## 快速开始
@@ -25,28 +23,32 @@ chmod 600 ~/.vmware-nsx-security/.env
 vmware-nsx-security doctor
 ```
 
-## 只读模式
+### 离线 / 隔离网络安装（从源码）
 
-提示词约束只是建议——模型可以无视它。只读模式是结构性的：设置 `VMWARE_READ_ONLY=true`，全部 11 个写工具（DFW 策略与规则的创建-更新-删除、安全组创建/删除、VM 标签应用/移除、Traceflow 数据包注入）会在启动时从 MCP 注册表中移除——`list_tools()` 根本不会列出它们，模型看不见的工具就无法调用。10 个只读工具保持可用，包括 DFW 规则统计与 IDS/IPS Profile、签名状态查询。默认关闭；且为 fail-closed 设计：请求了只读模式但无法保证时，服务器直接拒绝启动。
+本项目采用现代 PEP 517 构建系统（hatchling），因此**没有 `setup.py`**——这是
+预期设计，而非缺失文件。如果你克隆源码后遇到
+`ERROR: File "setup.py" or "setup.cfg" not found ... editable mode
+currently requires a setuptools-based build`，说明你的 `pip` 版本早于 21.3，
+无法对非 setuptools 后端做 *editable*（`-e`）安装。Editable 模式只是开发便利，
+运行本工具并不需要它——任选其一：
 
-三种启用方式：
+```bash
+# 在源码目录中——普通（非 editable）安装会构建 wheel：
+pip install .              # 不要用  pip install -e .
 
-```json
-{
-  "mcpServers": {
-    "vmware-nsx-security": {
-      "command": "vmware-nsx-security",
-      "args": ["mcp"],
-      "env": { "VMWARE_READ_ONLY": "true" }
-    }
-  }
-}
+# ……或先升级 pip，editable 也可用：
+pip install --upgrade pip && pip install -e .
 ```
 
-- 按 skill 覆盖：`VMWARE_NSX_SECURITY_READ_ONLY=true`（优先于家族级 `VMWARE_READ_ONLY`）
-- 配置文件方式：在 `~/.vmware-nsx-security/config.yaml` 中设置 `read_only: true`
+若目标是**完全隔离网络的主机**，在联网机器上构建好 wheel 再拷贝过去，目标主机即无需联网：
 
-优先级：按 skill 环境变量 → 家族环境变量 → 配置文件 → 默认关闭。启动日志会列出被移除工具的完整清单。
+```bash
+# 在联网机器上，将本包及其依赖收集为 wheel：
+pip wheel . -w dist        # → dist/*.whl   （或用 uv build 仅构建本包）
+
+# 将 dist/ 拷到隔离主机，离线安装：
+pip install --no-index --find-links dist vmware-nsx-security
+```
 
 ## 功能
 

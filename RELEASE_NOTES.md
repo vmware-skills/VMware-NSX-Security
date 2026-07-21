@@ -1,3 +1,76 @@
+## v1.8.7 (2026-07-21) — the skill-level read-only switch is removed; read/write authorization is the vCenter account's job (RBAC)
+
+### Removed: `VMWARE_READ_ONLY` / `read_only:` — give the agent a read-only service account instead
+
+The skill-level read-only switch is gone. It was enforced only on the MCP tool
+registry, and any agent with a shell (every SKILL.md grants `allowed-tools: Bash`)
+could reach the same change one CLI command away — so it withheld the *tool*, not
+the *capability*. It was never a real boundary.
+
+To run an agent read-only, give it a **read-only vCenter/NSX service account
+(RBAC)**. Writes are then refused at the platform, un-bypassably, regardless of
+surface or shell — the one place read/write control cannot be stepped around. A
+config still carrying `read_only: true` is ignored, with a one-time warning that
+names the replacement (no silent behavior change).
+
+### Removed: approval tiers and the declared-environment gate (via vmware-policy)
+
+The graduated-autonomy approval tiers (`confirm`/`dual`/`review`) and the "declare
+an environment or be refused" baseline are removed — they only ever fired on the
+rarest configuration while carrying the family's most complex machinery. Opt-in
+`deny` rules and the maintenance window remain, and apply identically wherever a
+tool runs.
+
+### Added: offline / air-gapped install docs
+
+The README now covers installing from source without editable mode (for older
+`pip`) and building wheels to carry onto an air-gapped host — the modern PEP 517
+layout has no `setup.py` by design, which is expected, not a missing file.
+
+This release also carries the accumulated fixes staged since 1.8.5.
+
+## v1.8.6 (unreleased) — `tags` comes back as a deprecated alias
+
+### Fixed — a v1.8.0 rename that could invert a microsegmentation verdict
+
+v1.8.0 said every `[READ]` list tool now returns the family envelope "instead of
+a bare array". For `list_vm_tags` that was not true: it had returned a keyed
+dict, `{vm_id, display_name, power_state, tags}`, and the conversion renamed
+`tags` to `items`.
+
+The distinction matters because it decides whether you find out. Replacing a
+bare array with a dict breaks loudly — `result[0]` raises. Renaming a key inside
+a dict that was already there breaks quietly: `result.get("tags", [])` kept
+returning a value, just always `[]`.
+
+**Here that empty list is not merely wrong, it is wrong in the direction of a
+finding.** Code shaped like `if not result.get("tags", []): report_untagged(vm)`
+did not start failing — it started reporting every VM as untagged. An untagged
+VM is exactly what a microsegmentation audit is hunting for, so the broken read
+does not surface as missing data.
+
+The v1.8.0 notes made this worse rather than surfacing it. A reader who used
+`list_vm_tags`, checked the sentence, saw that their payload was a keyed dict and
+not a bare array, would correctly conclude the described change was not
+theirs — and ship the bug. The v1.8.0 entry below now carries a correction
+saying so explicitly.
+
+**`tags` is restored as a deprecated alias**, pointing at the *same list object*
+as `items` rather than a copy, so the two cannot drift. `items` remains the
+primary key and the documented one. **`tags` is removed in 2.0** — migrate.
+
+Pinned by `tests/eval/regression/test_deprecated_key_aliases.py`, which asserts
+a pre-v1.8.0 caller still sees its tags, that a tagged VM is never reported
+untagged, that the alias is the same object (verified by mutating one and
+reading the other), and that `vm_id` — which the write path consumes — survives
+the merge.
+
+Three sibling tools shipped the same shape and are fixed in the same release:
+`list_virtual_machines` in vmware-monitor, and `list_tkc_clusters` plus
+`list_namespace_storage_usage` in vmware-vks.
+
+---
+
 ## v1.8.5 (2026-07-20) — the two fixes v1.8.4 announced now actually work
 
 Four adversarial reviews of v1.8.4 found that both of its headline fixes were
@@ -292,6 +365,44 @@ This closes the reported failure where long responses were summarised as "no dat
 returned": a bare list gives a model no way to tell a complete answer from page one, so
 it guessed. `truncated: false` now positively states completeness — including when
 `items` is empty, which means "checked, found none", not "the call failed".
+
+> **Correction (v1.8.6).** The sentence "instead of a bare array" above is true
+> of most tools converted family-wide, and false of exactly four. One of them
+> is in this repo.
+>
+> (The four were established by an AST key-loss diff over every returning
+> function in all twelve repos, mutation-verified in both directions. The
+> total converted count is not restated here because it was never verified to
+> the same standard — and a correction is the wrong place for a number
+> nobody checked.)
+>
+> **`list_vm_tags` was never a bare array.** Before v1.8.0 it returned a keyed
+> dict — `{vm_id, display_name, power_state, tags}` — and the conversion renamed
+> `tags` to `items`. That is a different kind of break from the other 51. A
+> bare-array caller doing `result[0]` gets an immediate `KeyError` on a dict and
+> finds out at once; a caller doing `result.get("tags", [])` kept running and
+> saw an empty tag list.
+>
+> **This one inverts a security verdict.** Code shaped like
+> `if not result.get("tags", []): report_untagged(vm)` did not start failing —
+> it started reporting *every* VM as untagged. An untagged VM is what a
+> microsegmentation audit is looking for, so the broken read does not look like
+> missing data. It looks like a finding.
+>
+> If you read this section when v1.8.0 shipped, checked `list_vm_tags`, saw a
+> keyed dict and concluded the change did not apply to you: it did. The count in
+> the bullet below is the tell — four tools are listed as converted, but five
+> `list_*` ops functions return the envelope. `list_vm_tags` is the one missing
+> from the count, and it was left out of the prose for the same reason.
+>
+> **v1.8.6 restores `tags`** as a deprecated alias pointing at the *same list
+> object* as `items` (not a copy — copies drift). It is removed in 2.0. Migrate
+> to `items`.
+>
+> The other three, for anyone running more of the family: `list_virtual_machines`
+> (`vms` → `items`) in vmware-monitor, and `list_tkc_clusters`
+> (`clusters` → `items`) plus `list_namespace_storage_usage` (`pvcs` → `items`,
+> `pvc_count` deleted outright) in vmware-vks.
 
 - **4 tool(s) converted** across ops, MCP and CLI. `total` is derived from what the code proves rather than from the wire: the client
   either drains the cursor or stops at its 1000-item cap, so a fetch under the cap
