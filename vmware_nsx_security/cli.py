@@ -14,6 +14,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.table import Table
+from vmware_policy import PolicyDenied, guarded
 
 from vmware_nsx_security.notify.audit import AuditLogger
 
@@ -74,6 +75,15 @@ def _cli_errors(fn):
 
         try:
             return fn(*args, **kwargs)
+        except (typer.Exit, typer.Abort):
+            raise
+        except PolicyDenied as exc:
+            # A deny rule or maintenance window refused this write — @guarded ran
+            # guard() before the body and already wrote the status="denied" audit
+            # row. Teach the operator which rule fired instead of a traceback.
+            rule = f" [dim](rule: {exc.result.rule})[/]" if exc.result.rule else ""
+            console.print(f"[bold red]Denied by policy:[/] {exc.result.reason}{rule}")
+            raise typer.Exit(1) from exc
         except (NsxApiError, FileNotFoundError, KeyError, OSError, ValueError) as exc:
             # KeyError reprs its message with quotes — unwrap for display.
             msg = exc.args[0] if isinstance(exc, KeyError) and exc.args else str(exc)
@@ -204,6 +214,7 @@ def policy_get(
 
 @policy_app.command("create")
 @_cli_errors
+@guarded(risk_level='medium')
 def policy_create(
     policy_id: str = typer.Argument(..., help="Policy ID"),
     display_name: str = typer.Option(..., "--name", help="Display name"),
@@ -244,6 +255,7 @@ def policy_create(
 
 @policy_app.command("delete")
 @_cli_errors
+@guarded(risk_level='high')
 def policy_delete(
     policy_id: str = typer.Argument(..., help="Policy ID to delete"),
     dry_run: DryRunOption = False,
@@ -331,6 +343,7 @@ def rule_stats(
 
 @rule_app.command("delete")
 @_cli_errors
+@guarded(risk_level='high')
 def rule_delete(
     policy_id: str = typer.Argument(..., help="Parent policy ID"),
     rule_id: str = typer.Argument(..., help="Rule ID to delete"),
@@ -414,6 +427,7 @@ def group_get(
 
 @group_app.command("delete")
 @_cli_errors
+@guarded(risk_level='high')
 def group_delete(
     group_id: str = typer.Argument(..., help="Group ID to delete"),
     dry_run: DryRunOption = False,
@@ -472,6 +486,7 @@ def tag_list(
 
 @tag_app.command("apply")
 @_cli_errors
+@guarded(risk_level='medium')
 def tag_apply(
     vm_id: str = typer.Argument(..., help="VM external ID"),
     scope: str = typer.Option(..., "--scope", help="Tag scope"),
@@ -502,6 +517,7 @@ def tag_apply(
 
 @tag_app.command("remove")
 @_cli_errors
+@guarded(risk_level='medium')
 def tag_remove(
     vm_id: str = typer.Argument(..., help="VM external ID"),
     scope: str = typer.Option(..., "--scope", help="Tag scope to remove"),
@@ -537,6 +553,7 @@ def tag_remove(
 
 @traceflow_app.command("run")
 @_cli_errors
+@guarded(risk_level='medium')
 def traceflow_run(
     src_lport: str = typer.Argument(..., help="Source logical port ID"),
     src_ip: str = typer.Option(..., "--src-ip", help="Source IP address"),
