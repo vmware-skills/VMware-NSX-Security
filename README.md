@@ -1,4 +1,4 @@
-<!-- mcp-name: io.github.zw008/vmware-nsx-security -->
+<!-- mcp-name: io.github.vmware-skills/vmware-nsx-security -->
 # VMware NSX Security
 
 > **Author**: Wei Zhou, VMware by Broadcom — wei-wz.zhou@broadcom.com
