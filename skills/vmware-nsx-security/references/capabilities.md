@@ -16,7 +16,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 - L1/L2 tools are always safe for agents to call without confirmation.
 - **List envelope**: `list_dfw_policies`, `list_dfw_rules`, `list_groups` and `list_idps_profiles` return `{items, returned, limit, total, truncated, hint}` instead of a bare array, so an agent can tell a complete answer from a first page rather than inferring it (VMware-AIops issue #31). `total` is reported only where the scan proved it — the real count on an unfiltered listing under the 1000-item `get_all` cap; `null` for name-filtered listings (the Search API returns matches, not a countable set), for scans that stopped at the cap, and for `list_dfw_rules` (bounded to `offset + limit` by design). `null` total plus `truncated: true` means "there may be more"; page with `offset`.
 - L3 tools always pass through the `@vmware_tool` decorator: connection check → policy check → audit log → double-confirm. DFW policy delete additionally checks for active rules; SG delete checks for references.
-- For Segment/Gateway/NAT (network plane) see [vmware-nsx](https://github.com/zw008/VMware-NSX).
+- For Segment/Gateway/NAT (network plane) see [vmware-nsx](https://github.com/vmware-skills/VMware-NSX).
 
 ## DFW Policy Categories
 
