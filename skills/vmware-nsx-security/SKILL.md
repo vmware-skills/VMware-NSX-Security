@@ -1,9 +1,9 @@
 ---
 name: vmware-nsx-security
 description: >
-  Use this skill whenever the user needs to manage VMware NSX security — distributed firewall (DFW) policies, security groups, microsegmentation, and IDS/IPS.
+  Use this skill whenever the user needs to manage VMware NSX security (rebranded VMware vDefend in VCF 9) — distributed firewall (DFW) policies, security groups, microsegmentation, and IDS/IPS.
   Directly handles: create/manage DFW policies and rules, security groups, VM tags, network traceflow diagnostics, IDPS profiles and status.
-  Always use this skill for "create firewall rule", "set up microsegmentation", "add VM to security group", "run traceflow", "check IDS status", or any NSX security/DFW task.
+  Always use this skill for "create firewall rule", "set up microsegmentation", "add VM to security group", "run traceflow", "check IDS status", "vDefend firewall rule", or any NSX security / vDefend / DFW task.
   Do NOT use for NSX networking operations like segments, gateways, NAT, or routing (use vmware-nsx), or VM lifecycle (use vmware-aiops).
   For load balancing/AVI/AKO use vmware-avi.
 installer:
