@@ -21,6 +21,7 @@ from vmware_policy import sanitize
 from vmware_nsx_security.config import ConfigError, load_config
 from vmware_nsx_security.connection import ConnectionManager, NsxApiError
 from vmware_nsx_security.notify.audit import AuditLogger
+from vmware_nsx_security import __version__
 
 logger = logging.getLogger(__name__)
 _audit = AuditLogger()
@@ -136,6 +137,11 @@ mcp = FastMCP(
         "For vSphere monitoring, use vmware-monitor."
     ),
 )
+
+# FastMCP takes no version argument and leaves the lowlevel server's at
+# None, which makes `initialize` answer with the MCP SDK's version rather
+# than ours. Set it so a client can tell which release it is talking to.
+mcp._mcp_server.version = __version__
 
 # ---------------------------------------------------------------------------
 # Connection helper
