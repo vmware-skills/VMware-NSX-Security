@@ -10,9 +10,7 @@ module (``server.py``) under the 800-line cap (踩坑 #17).
 
 
 import logging
-import os
 import ssl
-from pathlib import Path
 from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
@@ -154,8 +152,9 @@ def _get_connection(target: Optional[str] = None) -> Any:
     """Return an NsxClient, lazily initialising the connection manager."""
     global _conn_mgr  # noqa: PLW0603
     if _conn_mgr is None:
-        config_path_str = os.environ.get("VMWARE_NSX_SECURITY_CONFIG")
-        config_path = Path(config_path_str) if config_path_str else None
-        config = load_config(config_path)
+        # No env-var read here: load_config resolves the path (explicit arg,
+        # then the environment, then the default). This was a third copy of
+        # that rule, and copies are how the doctor's copy drifted (形态 #6).
+        config = load_config()
         _conn_mgr = ConnectionManager(config)
     return _conn_mgr.connect(target)

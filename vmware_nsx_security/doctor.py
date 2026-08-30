@@ -24,12 +24,22 @@ def run_doctor(
         config_path: Override config file path. Uses default if None.
         skip_auth: Skip NSX authentication tests (network-only mode).
     """
-    from vmware_nsx_security.config import CONFIG_FILE, ENV_FILE, load_config
+    from vmware_nsx_security.config import (
+        CONFIG_FILE,
+        ENV_FILE,
+        load_config,
+        resolve_config_path,
+    )
 
     checks: list[tuple[str, bool, str]] = []
 
     # ── 1. Config file exists ────────────────────────────────────────────────
-    path = config_path or CONFIG_FILE
+    # Resolved exactly as the tools resolve it — including
+    # $VMWARE_NSX_SECURITY_CONFIG, which this function used to skip. With the
+    # variable set it inspected ~/.vmware-nsx-security/config.yaml, found it
+    # fine, and reported PASS while every tool call opened a different file
+    # (2026-08-30).
+    path = resolve_config_path(config_path)
     if path.exists():
         checks.append(("Config file", True, str(path)))
     else:
