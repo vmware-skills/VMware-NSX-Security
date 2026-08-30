@@ -284,11 +284,10 @@ def list_dfw_exclusions(
     listed = excluded_groups(client)
     if listed.error:
         raise ConnectionError(
-            f"Could not read the DFW exclusion list from {EXCLUDE_LIST_PATH}: "
-            f"{listed.error}. Until it can be read, do not report any VM as "
-            "protected by DFW policy — an excluded VM has no DFW in its datapath. "
-            "Run 'vmware-nsx-security doctor' to check connectivity and that the "
-            "account has the policy_dfw read permission."
+            f"Run 'vmware-nsx-security doctor' — it checks connectivity and the "
+            f"account's policy_dfw read permission. Until the exclusion list can "
+            f"be read, report no VM as DFW-protected: an excluded VM has no DFW "
+            f"in its datapath. ({EXCLUDE_LIST_PATH}: {listed.error})"
         )
 
     names = _group_names(client)

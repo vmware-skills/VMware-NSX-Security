@@ -172,27 +172,20 @@
     "remedy_survives_truncation": {
       "detail": {
         "budget_chars": 300,
-        "over_budget": [
-          {
-            "budget": 300,
-            "chars": 335,
-            "where": "exclusion.py:286"
-          }
-        ],
+        "over_budget": [],
         "remedy_after_interpolation": [
           "config.py:236",
           "_paginate.py:46",
           "_paginate.py:55",
           "dfw_policy.py:264",
           "dfw_policy.py:297",
-          "exclusion.py:286",
           "traceflow.py:86"
         ]
       },
       "maximum": 28,
-      "pct": 96.4,
+      "pct": 100.0,
       "unit": "messages",
-      "value": 27
+      "value": 28
     },
     "teaching_error_rate": {
       "detail": {},
