@@ -7,6 +7,7 @@
         "entry_points": [
           "list_dfw_policies",
           "create_dfw_policy",
+          "list_dfw_exclusions",
           "list_groups",
           "create_group",
           "list_idps_profiles",
@@ -16,7 +17,7 @@
         "reachable_only_via_description": 5,
         "required_entity_params": 18,
         "required_params_classified": "18/30",
-        "tool_count": 21
+        "tool_count": 22
       },
       "maximum": 18,
       "pct": 100.0,
@@ -49,78 +50,87 @@
       },
       "maximum": 7,
       "pct": 85.7,
+      "stale": true,
       "unit": "required entity params",
       "value": 6
     },
     "entry_point_availability": {
       "detail": {
-        "full_entry_points": 6,
-        "read_only_entry_points": 4
+        "full_entry_points": 7
       },
-      "maximum": 10,
-      "pct": 40.0,
+      "maximum": 22,
+      "pct": 31.8,
       "unit": "entry points",
-      "value": 4
+      "value": 7
     },
     "error_actionability": {
       "detail": {
         "composed_hint_sites": [
-          "connection.py:265"
+          "connection.py:289"
         ],
         "dead_end_count": 0,
         "dead_end_errors": [],
         "per_dimension_pct": {
-          "names_artifact": 87.5,
+          "names_artifact": 82.1,
           "names_input": 100.0,
           "states_remedy": 100.0
         },
-        "raise_sites": 24
+        "raise_sites": 28
       },
-      "maximum": 72,
-      "pct": 95.8,
+      "maximum": 84,
+      "pct": 94.0,
       "unit": "points",
-      "value": 69
+      "value": 79
     },
     "manifest_context_headroom": {
       "detail": {
         "heaviest_tools": {
-          "create_dfw_rule": 651,
-          "create_group": 419,
-          "run_traceflow": 383,
-          "update_dfw_policy": 291,
-          "update_dfw_rule": 541
+          "create_dfw_rule": 711,
+          "create_group": 453,
+          "list_dfw_policies": 372,
+          "run_traceflow": 421,
+          "update_dfw_rule": 589
         },
-        "manifest_tokens": 5391,
-        "mean_tokens_per_tool": 256.7,
+        "manifest_tokens": 6519,
+        "mean_tokens_per_tool": 296.3,
         "reference_context": 16384,
-        "tool_count": 21
+        "tool_count": 22
       },
       "maximum": 16384,
-      "pct": 67.1,
+      "pct": 60.2,
       "unit": "tokens",
-      "value": 10993
+      "value": 9865
     },
     "parameter_documentation_coverage": {
       "detail": {
-        "undocumented_by_tool": {}
+        "undocumented_by_tool": {
+          "create_dfw_policy": [
+            "description"
+          ],
+          "create_group": [
+            "description"
+          ]
+        },
+        "value_set_candidates": {}
       },
-      "maximum": 100,
-      "pct": 100.0,
+      "maximum": 103,
+      "pct": 98.1,
       "unit": "parameters",
-      "value": 100
+      "value": 101
     },
     "per_tool_token_discipline": {
       "detail": {
         "ceiling": 350,
         "over_ceiling": {
-          "create_dfw_rule": 651,
-          "create_group": 419,
-          "run_traceflow": 383,
-          "update_dfw_rule": 541
+          "create_dfw_rule": 711,
+          "create_group": 453,
+          "list_dfw_policies": 372,
+          "run_traceflow": 421,
+          "update_dfw_rule": 589
         }
       },
-      "maximum": 21,
-      "pct": 81.0,
+      "maximum": 22,
+      "pct": 77.3,
       "unit": "tools",
       "value": 17
     },
@@ -146,6 +156,7 @@
       },
       "maximum": 5391,
       "pct": 65.7,
+      "stale": true,
       "unit": "tokens",
       "value": 3542
     },
@@ -153,73 +164,89 @@
       "detail": {
         "unmarked": []
       },
-      "maximum": 21,
+      "maximum": 22,
       "pct": 100.0,
       "unit": "points",
-      "value": 21
+      "value": 22
     },
     "remedy_survives_truncation": {
       "detail": {
         "budget_chars": 300,
-        "over_budget": [],
+        "over_budget": [
+          {
+            "budget": 300,
+            "chars": 335,
+            "where": "exclusion.py:286"
+          }
+        ],
         "remedy_after_interpolation": [
-          "config.py:219",
-          "dfw_policy.py:207",
-          "dfw_policy.py:240",
+          "config.py:236",
+          "_paginate.py:46",
+          "_paginate.py:55",
+          "dfw_policy.py:264",
+          "dfw_policy.py:297",
+          "exclusion.py:286",
           "traceflow.py:86"
         ]
       },
-      "maximum": 24,
-      "pct": 100.0,
+      "maximum": 28,
+      "pct": 96.4,
       "unit": "messages",
-      "value": 24
+      "value": 27
     },
     "teaching_error_rate": {
       "detail": {},
-      "maximum": 24,
-      "pct": 87.5,
+      "maximum": 28,
+      "pct": 82.1,
       "unit": "messages",
-      "value": 21
+      "value": 23
     },
     "tool_description_quality": {
       "detail": {
         "per_dimension_pct": {
-          "args": 100.0,
+          "args": 90.9,
           "gotcha": 100.0,
           "marker": 100.0,
-          "next_hop": 100.0,
+          "next_hop": 95.5,
           "what": 100.0,
-          "when": 100.0
+          "when": 95.5
         },
-        "tools_graded": 21,
+        "tools_graded": 22,
         "weakest_tools": {
           "apply_vm_tag": [],
-          "create_dfw_policy": [],
+          "create_dfw_policy": [
+            "args",
+            "when"
+          ],
           "create_dfw_rule": [],
-          "create_group": [],
+          "create_group": [
+            "args"
+          ],
           "delete_dfw_policy": [],
           "delete_dfw_rule": [],
           "delete_group": [],
-          "get_dfw_policy": []
+          "list_dfw_exclusions": [
+            "next_hop"
+          ]
         }
       },
-      "maximum": 126,
-      "pct": 100.0,
+      "maximum": 132,
+      "pct": 97.0,
       "unit": "points",
-      "value": 126
+      "value": 128
     },
     "tool_failure_payload_quality": {
       "detail": {
         "bare_string_error_lines": [],
-        "carries_hint": 21,
-        "dict_shaped": 21,
-        "error_return_sites": 21,
-        "hint_names_artifact": 21
+        "carries_hint": 22,
+        "dict_shaped": 22,
+        "error_return_sites": 22,
+        "hint_names_artifact": 22
       },
-      "maximum": 63,
+      "maximum": 66,
       "pct": 100.0,
       "unit": "checks",
-      "value": 63
+      "value": 66
     }
   }
 }
