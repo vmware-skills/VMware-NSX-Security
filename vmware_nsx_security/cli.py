@@ -175,7 +175,8 @@ def policy_list(
     from vmware_nsx_security.ops.dfw_policy import list_dfw_policies
 
     client, _ = _get_connection(target, config)
-    policies = list_dfw_policies(client, name_filter=name_filter, limit=limit, offset=offset)["items"]
+    result = list_dfw_policies(client, name_filter=name_filter, limit=limit, offset=offset)
+    policies = result["items"]
 
     table = Table(title="DFW Security Policies")
     table.add_column("ID")
@@ -192,9 +193,14 @@ def policy_list(
             p["category"],
             str(p["sequence_number"]),
             str(p["stateful"]),
-            str(p["rule_count"]),
+            # "?" rather than "0" or "None": an unretrieved count must not
+            # read as an empty policy in the one column an operator scans to
+            # find where rules live.
+            "?" if p["rule_count"] is None else str(p["rule_count"]),
         )
     console.print(table)
+    if result.get("rule_count_note"):
+        console.print(f"[yellow]? = rule count not retrieved.[/yellow] {result['rule_count_note']}")
 
 
 @policy_app.command("get")

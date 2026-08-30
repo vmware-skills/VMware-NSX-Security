@@ -31,6 +31,12 @@ def list_dfw_policies(
     name_filter or page with offset. Then get_dfw_policy for one policy's
     detail, or list_dfw_rules for the rules inside.
 
+    'rule_count' is null when NSX did not report one — that means "not
+    retrieved", NOT "no rules", so do not conclude a null policy enforces
+    nothing; call list_dfw_rules on it. Passing name_filter makes every
+    count null (it is resolved via the Policy Search API, which carries no
+    rule counts). A null anywhere adds 'rule_count_note' to the envelope.
+
     Args:
         target: NSX Manager target name from config; default if omitted.
         name_filter: Substring/glob match on policy display_name.

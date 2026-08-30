@@ -30,6 +30,27 @@ _DFW_BASE = "/policy/api/v1/infra/domains/default/security-policies"
 # Environment → Application
 _VALID_CATEGORIES = {"Ethernet", "Emergency", "Infrastructure", "Environment", "Application"}
 
+# ``SecurityPolicy.rule_count`` exists but is not filled in for free: the NSX
+# API reference says of this parameter that "by default, rule_count will not
+# be populated". Asking rides on the listing we already make, where counting
+# the rules ourselves would cost one round trip per policy (踩坑 #31).
+_COUNT_PARAMS = {"include_rule_count": "true"}
+
+
+def _rule_count(policy: dict) -> int | None:
+    """The policy's rule count, or ``None`` when the manager reported none.
+
+    Absent is not zero. A listing that did not ask for the count, and every
+    listing resolved through the Search API, comes back without the field —
+    and defaulting it to 0 turns "not answered" into "nothing enforced". That
+    reading is what stops an operator going to look for the DROP rules that
+    are in fact there, so the unknown has to stay visible as an unknown.
+    """
+    count = policy.get("rule_count")
+    if isinstance(count, bool) or not isinstance(count, int):
+        return None
+    return count
+
 
 # ---------------------------------------------------------------------------
 # Policy list / get
@@ -59,16 +80,25 @@ def list_dfw_policies(
         ``search_by_name`` returns only its matches, so a filtered listing
         has no trustworthy total to report.
 
+        ``rule_count`` is an int where NSX reported one and ``None`` where it
+        did not; ``None`` means "not retrieved", never "no rules". When any
+        row is ``None`` the envelope carries a ``rule_count_note`` saying so
+        and pointing at ``list_dfw_rules``.
+
     Note:
         A ``name_filter`` is resolved server-side via the Policy Search API
         so a match ranked past the ``get_all`` safety cap on a large estate
         is still found — a plain client-side filter would silently miss it.
+        The trade is the rule counts: the Search API serves indexed objects
+        and takes no ``include_rule_count``, so a filtered listing reports
+        every count as unknown rather than fetching each policy's rules to
+        count them.
     """
     if name_filter:
         items = search_by_name(client, "SecurityPolicy", _DFW_BASE, name_filter)
         total = None
     else:
-        items = client.get_all(_DFW_BASE)
+        items = client.get_all(_DFW_BASE, params=dict(_COUNT_PARAMS))
         total = known_total(items)
     rows = [
         {
@@ -78,12 +108,21 @@ def list_dfw_policies(
             "sequence_number": p.get("sequence_number", 0),
             "stateful": p.get("stateful", True),
             "tcp_strict": p.get("tcp_strict", False),
-            "rule_count": p.get("rule_count", 0),
+            "rule_count": _rule_count(p),
             "path": sanitize(p.get("path", "")),
         }
         for p in paginate(items, limit, offset)
     ]
-    return paginated(rows, limit=limit, total=total)
+    extra: dict[str, Any] = {}
+    if any(row["rule_count"] is None for row in rows):
+        extra["rule_count_note"] = (
+            "rule_count is null for one or more policies: this NSX Manager "
+            "did not report a count, and null is not zero — those policies "
+            "may well be enforcing rules. Run list_dfw_rules on each such "
+            "policy id to see what it holds. A name_filter always reads null: "
+            "the Policy Search API that resolves it carries no rule counts."
+        )
+    return paginated(rows, limit=limit, total=total, **extra)
 
 
 def get_dfw_policy(client: NsxClient, policy_id: str) -> dict:
