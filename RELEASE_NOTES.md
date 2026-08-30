@@ -1,3 +1,39 @@
+## v1.9.0 — the exclusion list was invisible, so "protected" was wrong for most of the fabric
+
+A minor bump because it adds a tool. On the test estate **10 of 12 fabric VMs
+were on the NSX distributed-firewall exclusion list** — including vCenter, VCF
+Operations and an NSX manager — and nothing in this skill surfaced it. Every
+answer about a VM being micro-segmented or covered by DFW policy was therefore
+wrong for 83% of those hosts, and confidently so: the rules exist, they simply
+do not apply to an excluded member.
+
+`list_dfw_exclusions` reads it directly, and the tools an operator actually asks
+"is this host protected?" carry the state with them — `list_vm_tags`,
+`get_group` on the group and each sampled member, and a note on
+`list_dfw_policies`, which is the listing that gets read as "the fabric is
+segmented". Not on `list_dfw_rules`: that is the paging loop, and its docstring
+points at the tool instead. `null` is never `false` — an unreadable list reports
+unknown, and a partially resolved index can prove membership but never absence.
+
+Two details settled against the published 9.1 contract rather than from memory:
+`members` on `PolicyExcludeList` is an array of Group *paths*, so naming VMs
+means resolving groups; and `?system_owned=true` is required to see NSX's own
+exclusions, which on a VCF estate is exactly where the management VMs are. The
+obvious endpoint, `GET /api/v1/firewall/excludelist`, is on 9.1.0's Removed
+Methods page — a test fails if it reappears.
+
+`run_traceflow` was also declared a write and audited nothing, while the other
+ten write tools each called the audit themselves; the sweep is derived from the
+annotations now, so the eleventh joins by existing. The exclusion-list failure
+message lost its remedy to the 300-character cap and was rewritten to lead with
+the action. And the suite stopped writing to the operator's real audit database.
+
+**The `vmware-policy` floor moves to >=1.11.0** — Policy 1.11.0 stops the engine
+failing open when `rules.yaml` cannot be read. One behaviour travels with it: on
+such a host, operations move from all-allowed to all-denied.
+`VMWARE_POLICY_DISABLED=1` is checked above the rules, so the escape hatch does
+not depend on them loading.
+
 ## v1.8.12 — the schema an agent reads now carries the descriptions
 
 Parameter descriptions reach the JSON schema for the first time. An MCP client

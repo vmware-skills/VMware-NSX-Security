@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "vmware-nsx-security",
   "displayName": "VMware NSX Security",
-  "version": "1.8.12",
+  "version": "1.9.0",
   "description": "VMware NSX security: DFW policies and exclusions, groups, tags, Traceflow, IDPS — 22 MCP tools.",
   "author": {
     "name": "Wei Zhou",

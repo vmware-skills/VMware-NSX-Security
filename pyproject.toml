@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vmware-nsx-security"
-version = "1.8.12"
+version = "1.9.0"
 description = "VMware NSX DFW microsegmentation and security: distributed firewall, security groups, tags, traceflow, IDPS"
 readme = "README.md"
 license = "MIT"
