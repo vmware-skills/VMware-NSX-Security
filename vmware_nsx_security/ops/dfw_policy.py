@@ -9,17 +9,18 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from vmware_policy import paginated, sanitize
+from vmware_policy import sanitize
 
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
     known_total,
-    next_offset,
+    page_envelope,
     paginate,
     validate_page_args,
 )
 from vmware_nsx_security.ops._search import search_by_name
 from vmware_nsx_security.ops._validate import validate_id as _validate_id
+from vmware_nsx_security.ops.exclusion import policy_exclusion_note
 
 if TYPE_CHECKING:
     from vmware_nsx_security.connection import NsxClient
@@ -124,9 +125,13 @@ def list_dfw_policies(
         }
         for p in paginate(items, limit, offset)
     ]
-    extra: dict[str, Any] = {
-        "next_offset": next_offset(len(rows), limit, offset, total),
-    }
+    extra: dict[str, Any] = {}
+    # A correct listing of policies is what an operator reads as "the fabric is
+    # segmented". It is not, for any member on the DFW exclusion list. One GET,
+    # no member resolution — naming the VMs is list_dfw_exclusions's job.
+    note = policy_exclusion_note(client)
+    if note:
+        extra["exclusion_note"] = note
     if any(row["rule_count"] is None for row in rows):
         extra["rule_count_note"] = (
             "rule_count is null for one or more policies: this NSX Manager "
@@ -135,7 +140,7 @@ def list_dfw_policies(
             "policy id to see what it holds. A name_filter always reads null: "
             "the Policy Search API that resolves it carries no rule counts."
         )
-    return paginated(rows, limit=limit, total=total, **extra)
+    return page_envelope(rows, limit=limit, offset=offset, total=total, **extra)
 
 
 def get_dfw_policy(client: NsxClient, policy_id: str) -> dict:
@@ -361,8 +366,4 @@ def list_dfw_rules(
         }
         for r in items
     ]
-    return paginated(
-        rows,
-        limit=limit,
-        next_offset=next_offset(len(rows), limit, offset, None),
-    )
+    return page_envelope(rows, limit=limit, offset=offset, total=None)

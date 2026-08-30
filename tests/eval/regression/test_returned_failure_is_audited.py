@@ -72,7 +72,10 @@ def audited(monkeypatch):
             rows.append(kw)
 
     monkeypatch.setattr("vmware_policy.guard.get_engine", lambda: _Recorder())
-    monkeypatch.setattr("vmware_nsx_security.mcp_server._shared._audit", _Recorder())
+    # The skill's own JSON-Lines log is written by the registration-time sweep
+    # in _write_audit, not by the tool bodies, since the per-tool `_audit.log`
+    # calls were removed (one write tool had already been added without one).
+    monkeypatch.setattr("vmware_nsx_security.mcp_server._write_audit._audit", _Recorder())
     return rows
 
 

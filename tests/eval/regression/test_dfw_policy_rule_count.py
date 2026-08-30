@@ -156,22 +156,34 @@ def test_search_path_does_not_fetch_rules_per_policy(monkeypatch) -> None:
     Counting by draining each policy's rules would be accurate and would also
     be the pattern this family removed everywhere else (踩坑 #31).
     """
-    monkeypatch.setattr(
-        "vmware_nsx_security.ops.dfw_policy.search_by_name",
-        lambda *a, **k: [_policy(f"p{i}") for i in range(15)],
-    )
-    client = MagicMock()
-    list_dfw_policies(client, name_filter="p*")
-    assert client.get.call_count == 0
-    assert client.get_all.call_count == 0
+    def _search(count):
+        monkeypatch.setattr(
+            "vmware_nsx_security.ops.dfw_policy.search_by_name",
+            lambda *a, **k: [_policy(f"p{i}") for i in range(count)],
+        )
+        client = MagicMock()
+        client.get.return_value = {"members": []}
+        list_dfw_policies(client, name_filter="p*")
+        return client.get.call_count, client.get_all.call_count
+
+    # The property is that the cost does not grow with the number of rows, not
+    # that it is zero: reading the DFW exclusion list costs one fixed GET, and
+    # pinning the absolute number would have made that fixed cost look like the
+    # per-item fetch this test exists to forbid.
+    assert _search(1) == _search(15)
+    assert client_free_of_per_row_calls(_search(15), rows=15)
 
 
 def test_unfiltered_listing_is_one_call_regardless_of_policy_count() -> None:
     """Same guarantee on the unfiltered path: one request, not one per row."""
-    client = _client([_policy(f"p{i}", rule_count=i) for i in range(15)])
-    list_dfw_policies(client)
-    assert client.get_all.call_count == 1
-    assert client.get.call_count == 0
+    def _listing(count):
+        client = _client([_policy(f"p{i}", rule_count=i) for i in range(count)])
+        client.get.return_value = {"members": []}
+        list_dfw_policies(client)
+        return client.get.call_count, client.get_all.call_count
+
+    assert _listing(1) == _listing(15)
+    assert client_free_of_per_row_calls(_listing(15), rows=15)
 
 
 # ---------------------------------------------------------------------------
@@ -266,3 +278,12 @@ def test_cli_still_prints_a_real_zero_as_zero() -> None:
     assert "0" in row
     assert "?" not in row
     assert "not retrieved" not in out
+
+
+def client_free_of_per_row_calls(counts: tuple[int, int], *, rows: int) -> bool:
+    """True when the request count cannot be a per-row fetch.
+
+    A fixed overhead is fine; anything at or above one call per row is the
+    pattern 踩坑 #31 removed from this family.
+    """
+    return sum(counts) < rows

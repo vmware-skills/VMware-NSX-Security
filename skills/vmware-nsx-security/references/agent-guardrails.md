@@ -14,7 +14,7 @@ vmware-monitor and vmware-aria against a production vSphere estate with Llama
 cross-skill rules are identical across this family; the parts below marked
 vmware-nsx-security are specific to this skill.
 
-vmware-nsx-security exposes 21 MCP tools, 11 of which change state. This is a
+vmware-nsx-security exposes 22 MCP tools, 11 of which change state. This is a
 firewall: a wrong rule does not raise an error, it silently permits or blocks
 traffic, and nobody finds out until something breaks or nothing does.
 
@@ -35,7 +35,7 @@ These are structural, so it cannot.
 | "Check whether a group is used anywhere before deleting it" | **`delete_group` scans** rule sources, destinations, applied-to scope and policy scope, and refuses when referenced. It also refuses when the scan itself fails, rather than assuming the group is unused. |
 | "Do not delete a policy that still has rules in it" | **`delete_dfw_policy` refuses** while active rules exist. |
 | "Use explicit limits for queries that may return large amounts of data" | **The list envelope.** `list_dfw_policies`, `list_dfw_rules`, `list_groups` and `list_idps_profiles` return `{items, returned, limit, total, truncated, hint}`, so the model reads truncation instead of guessing at it. A 50-row default page and a whole estate look identical without it. |
-| "If a listing came back empty, say so rather than claiming the call failed" | Same envelope. Empty `items` with `truncated: false` means checked-and-none — a stated result, not a silence the model has to interpret. Note `total` is `null` for name-filtered and capped listings; a `null` total with `truncated: true` means "there may be more", so page with `offset` to confirm. |
+| "If a listing came back empty, say so rather than claiming the call failed" | Same envelope. Empty `items` with `truncated: false` means checked-and-none — a stated result, not a silence the model has to interpret. Note `total` is `null` for name-filtered and capped listings; `truncated: true` means `items` is not the whole collection and stays true on the last page, so page with `next_offset` and stop when it is `null`. |
 | "Log every state change you make" | **The `@vmware_tool` decorator.** Every write is recorded to `~/.vmware/audit.db` before the model sees the result, and policy rules are evaluated ahead of execution. |
 | "Block state-changing writes against a production target" | **Policy.** An opt-in environment-scoped `deny` rule in `~/.vmware/rules.yaml` matches a target's `environment:` label and refuses matching writes before execution. |
 

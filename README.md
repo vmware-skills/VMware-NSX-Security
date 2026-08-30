@@ -5,7 +5,7 @@
 > This is a community-driven project by a VMware engineer, not an official VMware product.
 > For official VMware developer tools see [developer.broadcom.com](https://developer.broadcom.com).
 
-VMware NSX DFW microsegmentation and security MCP skill — 21 tools for distributed firewall policies/rules, security groups, VM tags, Traceflow packet tracing, and IDPS.
+VMware NSX DFW microsegmentation and security MCP skill — 22 tools for distributed firewall policies/rules, security groups, VM tags, the DFW exclusion list, Traceflow packet tracing, and IDPS.
 
 > **Companion skills**: [vmware-nsx](https://github.com/vmware-skills/VMware-NSX) (networking), [vmware-aiops](https://github.com/vmware-skills/VMware-AIops) (VM lifecycle), [vmware-monitor](https://github.com/vmware-skills/VMware-Monitor) (monitoring)
 
@@ -62,8 +62,18 @@ pip install --no-index --find-links dist vmware-nsx-security
 | VM Tags | list tags, apply tag, remove tag |
 | Traceflow | run trace, get result |
 | IDPS | list profiles, signature status + settings |
+| DFW Exclusions | list excluded members |
 
-**Total: 21 MCP tools** (10 read-only + 11 write)
+**Total: 22 MCP tools** (11 read-only + 11 write)
+
+### DFW exclusion list
+
+A VM on the NSX distributed-firewall exclusion list has no DFW in its datapath: the rules that
+name it exist and none of them applies. On a VCF estate the management VMs (vCenter, VCF
+Operations, NSX managers) are commonly on it — one real NSX 9.1 fabric had 10 of 12 VMs excluded.
+`list_dfw_exclusions` shows the list, and `list_vm_tags` / `get_group` / `list_dfw_policies` say
+when a member is excluded, so "protected by DFW policy" is never reported for a VM the DFW does
+not see. `dfw_excluded: null` means the list could not be read — which is not `false`.
 
 ## MCP Server Setup
 

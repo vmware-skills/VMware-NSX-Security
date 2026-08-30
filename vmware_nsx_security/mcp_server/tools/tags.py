@@ -6,7 +6,6 @@ from vmware_policy import vmware_tool
 
 from vmware_nsx_security.mcp_server._shared import (
     _DOCTOR_HINT,
-    _audit,
     _get_connection,
     _safe_error,
     _write_error,
@@ -82,13 +81,6 @@ def apply_vm_tag(
 
         client = _get_connection(target)
         result = _fn(client, vm_id, tag_scope, tag_value)
-        _audit.log(
-            target=target or "default",
-            operation="apply_vm_tag",
-            resource=vm_id,
-            parameters={"scope": tag_scope, "tag": tag_value},
-            result="ok",
-        )
         return result
     except Exception as e:
         return _write_error(
@@ -124,13 +116,6 @@ def remove_vm_tag(
 
         client = _get_connection(target)
         result = _fn(client, vm_id, tag_scope, tag_value)
-        _audit.log(
-            target=target or "default",
-            operation="remove_vm_tag",
-            resource=vm_id,
-            parameters={"scope": tag_scope, "tag": tag_value},
-            result="ok",
-        )
         return result
     except Exception as e:
         return _write_error(

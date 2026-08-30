@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.vmware-skills/vmware-nsx-security",
   "title": "VMware NSX Security",
-  "description": "VMware NSX security: DFW policies, security groups, tags, Traceflow, IDPS — 21 MCP tools.",
+  "description": "VMware NSX security: DFW policies and exclusions, groups, tags, Traceflow, IDPS — 22 MCP tools.",
   "repository": {
     "url": "https://github.com/vmware-skills/VMware-NSX-Security",
     "source": "github"

@@ -3,7 +3,7 @@
   "name": "vmware-nsx-security",
   "displayName": "VMware NSX Security",
   "version": "1.8.12",
-  "description": "VMware NSX security: DFW policies, security groups, tags, Traceflow, IDPS — 21 MCP tools.",
+  "description": "VMware NSX security: DFW policies and exclusions, groups, tags, Traceflow, IDPS — 22 MCP tools.",
   "author": {
     "name": "Wei Zhou",
     "email": "zhouwei008@gmail.com",

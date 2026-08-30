@@ -18,11 +18,9 @@ from vmware_policy import sanitize
 
 from vmware_nsx_security.config import ConfigError, load_config
 from vmware_nsx_security.connection import ConnectionManager, NsxApiError
-from vmware_nsx_security.notify.audit import AuditLogger
 from vmware_nsx_security import __version__
 
 logger = logging.getLogger(__name__)
-_audit = AuditLogger()
 
 _DOCTOR_HINT = "Run 'vmware-nsx-security doctor' to verify connectivity."
 
@@ -108,19 +106,19 @@ def _write_error(
     target: Optional[str],
     parameters: Optional[dict] = None,
 ) -> dict:
-    """Audit a failed write operation and return the standard error payload.
+    """Return the standard error payload for a failed write.
 
-    Write wrappers previously audited only successes, leaving failed writes
-    invisible in the audit trail — every write tool's except branch must go
-    through here so result="error" entries are recorded too.
+    It no longer audits. It used to, because the tool bodies audited their own
+    successes and the failure path had to match — and that whole arrangement is
+    what let ``run_traceflow`` be added as a write tool that audited neither.
+    ``_write_audit.install_write_audit`` now records every write on both paths,
+    from the ``readOnlyHint`` the tool already declares, so auditing here as
+    well would file each failure twice.
+
+    The ``operation`` / ``resource`` / ``parameters`` arguments are kept: the
+    callers pass them, they cost nothing, and removing them from eleven call
+    sites is a rename with no reader.
     """
-    _audit.log(
-        target=target or "default",
-        operation=operation,
-        resource=resource,
-        parameters=parameters,
-        result="error",
-    )
     return {"error": _safe_error(exc, "nsx-security"), "hint": _DOCTOR_HINT}
 
 

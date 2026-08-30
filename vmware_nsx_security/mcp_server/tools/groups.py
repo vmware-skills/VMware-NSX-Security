@@ -6,7 +6,6 @@ from vmware_policy import vmware_tool
 
 from vmware_nsx_security.mcp_server._shared import (
     _DOCTOR_HINT,
-    _audit,
     _get_connection,
     _safe_error,
     _write_error,
@@ -126,13 +125,6 @@ def create_group(
             tag_scope=tag_scope, tag_value=tag_value,
             ip_addresses=ip_addresses, segment_paths=segment_paths,
         )
-        _audit.log(
-            target=target or "default",
-            operation="create_group",
-            resource=group_id,
-            parameters={"display_name": display_name},
-            result="ok",
-        )
         return result
     except Exception as e:
         return _write_error(
@@ -163,12 +155,6 @@ def delete_group(group_id: str, target: Optional[str] = None) -> dict:
 
         client = _get_connection(target)
         result = _fn(client, group_id)
-        _audit.log(
-            target=target or "default",
-            operation="delete_group",
-            resource=group_id,
-            result="ok",
-        )
         return result
     except Exception as e:
         return _write_error(

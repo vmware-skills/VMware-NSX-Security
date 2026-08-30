@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any
 
 from vmware_policy import paginated, sanitize
 
+from vmware_nsx_security.ops.exclusion import exclusion_index
+
 if TYPE_CHECKING:
     from vmware_nsx_security.connection import NsxClient
 
@@ -45,6 +47,13 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
         The family list envelope; ``items`` holds the VM's tag dicts (each
         with 'scope' and 'tag' fields), alongside the extras 'vm_id',
         'display_name' and 'power_state' naming the VM they belong to.
+
+        ``dfw_excluded`` says whether this VM is on the NSX distributed-firewall
+        exclusion list: ``True`` means **no DFW rule applies to it**, whatever
+        tags it carries and whatever groups those tags put it in.
+        ``False`` means it is not excluded. ``None`` means the exclusion list
+        could not be read — which is not the same as ``False``, and
+        ``dfw_exclusion_note`` says which of the three it is.
 
         The fabric API returns a VM's tags in full, in one response, so the
         set is never paged: ``limit`` is None, ``total`` equals ``returned``,
@@ -100,6 +109,15 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
 
     vm = vms[0]
     tags = vm.get("tags", [])
+    # Tags are how this VM gets into groups, and groups are how DFW rules reach
+    # it — but none of that happens at all if the VM is on the DFW exclusion
+    # list. Answering "here are its tags" without saying so is the answer that
+    # was wrong for ten of twelve hosts on the 2026-08-30 estate. One list GET
+    # plus one member fetch per excluded group; nothing per VM (踩坑 #31).
+    index = exclusion_index(client)
+    excluded = index.covers(
+        vm.get("display_name"), vm.get("external_id"), vm.get("uuid")
+    )
     envelope = paginated(
         tags,
         limit=None,
@@ -107,6 +125,8 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
         vm_id=sanitize(vm.get("external_id", "")),
         display_name=sanitize(vm.get("display_name", "")),
         power_state=vm.get("power_state", ""),
+        dfw_excluded=excluded,
+        dfw_exclusion_note=index.note_for(excluded),
     )
     # Deprecated alias for pre-v1.8.0 callers; removed in 2.0. Same list object
     # as ``items`` — a copy would let the two drift.

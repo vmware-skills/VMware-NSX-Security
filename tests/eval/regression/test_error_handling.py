@@ -330,15 +330,17 @@ def test_safe_error_passes_nsx_api_error_through() -> None:
 
 
 def test_mcp_write_failure_is_audited_as_error() -> None:
-    import vmware_nsx_security.mcp_server._shared as shared
+    import vmware_nsx_security.mcp_server._write_audit as write_audit
     import vmware_nsx_security.mcp_server.server as server
     import vmware_nsx_security.mcp_server.tools.tags as tags
 
-    # After the domain split the tool body lives in vmware_nsx_security.mcp_server.tools.tags and
-    # binds `_get_connection` in that namespace; `_write_error` audits via the
-    # `_audit` global in vmware_nsx_security.mcp_server._shared. Patch each at its real home.
+    # The tool body lives in vmware_nsx_security.mcp_server.tools.tags and binds
+    # `_get_connection` in that namespace. The audit no longer comes from the
+    # tool body or from `_write_error`: `install_write_audit` wraps every tool
+    # declaring readOnlyHint=False and writes both paths, so the sink to patch
+    # is the `_audit` global in vmware_nsx_security.mcp_server._write_audit.
     audit = MagicMock()
-    with patch.object(shared, "_audit", audit), patch.object(
+    with patch.object(write_audit, "_audit", audit), patch.object(
         tags, "_get_connection",
         side_effect=NsxApiError("NSX POST /x returned HTTP 503. Not ready.", status_code=503),
     ):

@@ -1,7 +1,7 @@
 """MCP server wrapping VMware NSX Security operations.
 
 This module is the thin entrypoint: it imports ``vmware_nsx_security.mcp_server.tools`` (which
-registers all 21 ``@mcp.tool()`` functions onto the shared ``mcp`` instance),
+registers all 22 ``@mcp.tool()`` functions onto the shared ``mcp`` instance),
 re-exports the tool functions and shared plumbing for direct import, and
 exposes ``main()`` as the ``vmware-nsx-security-mcp`` console entry point.
 The per-tool bodies now live in ``mcp_server/tools/*.py`` grouped by domain;
@@ -12,7 +12,7 @@ Tool categories
 * **Read-only** (no side effects): list_dfw_policies, get_dfw_policy,
   list_dfw_rules, list_groups, get_group, list_vm_tags,
   get_traceflow_result, list_idps_profiles, get_idps_status,
-  get_dfw_rule_stats
+  get_dfw_rule_stats, list_dfw_exclusions
 
 * **Write** (mutate state): create_dfw_policy, update_dfw_policy,
   delete_dfw_policy, create_dfw_rule, update_dfw_rule, delete_dfw_rule,
@@ -39,17 +39,23 @@ from vmware_policy import describe_tool_parameters, mtime_cached_loader, set_env
 from vmware_nsx_security.config import CONFIG_FILE, load_config
 
 # Importing the tools package executes every @mcp.tool() decorator and
-# registers all 21 tools onto the shared `mcp` instance.
+# registers all 22 tools onto the shared `mcp` instance.
 import vmware_nsx_security.mcp_server.tools  # noqa: F401
 from vmware_nsx_security.mcp_server._shared import (  # noqa: F401
     _DOCTOR_HINT,
-    _audit,
     _get_connection,
     _safe_error,
     _write_error,
     logger,
     mcp,
 )
+from vmware_nsx_security.mcp_server._write_audit import install_write_audit
+
+# Give every registered write tool this skill's own audit log, derived from the
+# readOnlyHint each tool already declares. Must run BEFORE the re-exports below,
+# so the names published here are the audited callables and not a second,
+# unaudited copy of each tool.
+_AUDITED_WRITES = install_write_audit(mcp)
 
 # Re-export the tool functions so `from vmware_nsx_security.mcp_server.server import apply_vm_tag`
 # and similar direct imports keep working after the domain split.
@@ -66,6 +72,9 @@ from vmware_nsx_security.mcp_server.tools.dfw_rules import (  # noqa: F401
     get_dfw_rule_stats,
     list_dfw_rules,
     update_dfw_rule,
+)
+from vmware_nsx_security.mcp_server.tools.exclusion import (  # noqa: F401
+    list_dfw_exclusions,
 )
 from vmware_nsx_security.mcp_server.tools.groups import (  # noqa: F401
     create_group,
@@ -86,7 +95,6 @@ from vmware_nsx_security.mcp_server.tools.traceflow import (  # noqa: F401
     get_traceflow_result,
     run_traceflow,
 )
-
 
 # ---------------------------------------------------------------------------
 # Environment declaration

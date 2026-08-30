@@ -24,7 +24,7 @@ compatibility: >
 
 > **Disclaimer**: This is a community-maintained open-source project and is **not affiliated with, endorsed by, or sponsored by VMware, Inc. or Broadcom Inc.** "VMware" and "NSX" are trademarks of Broadcom. Source code is publicly auditable at [github.com/vmware-skills/VMware-NSX-Security](https://github.com/vmware-skills/VMware-NSX-Security) under the MIT license.
 
-VMware NSX DFW microsegmentation and security — 21 MCP tools for distributed firewall, security groups, VM tags, Traceflow, and IDPS.
+VMware NSX DFW microsegmentation and security — 22 MCP tools for distributed firewall, security groups, VM tags, the DFW exclusion list, Traceflow, and IDPS.
 
 > Domain-focused security skill for NSX-T / NSX 4.x Policy API.
 > **Companion skills**: [vmware-nsx](https://github.com/vmware-skills/VMware-NSX) (networking), [vmware-aiops](https://github.com/vmware-skills/VMware-AIops) (VM lifecycle), [vmware-monitor](https://github.com/vmware-skills/VMware-Monitor) (read-only monitoring), [vmware-avi](https://github.com/vmware-skills/VMware-AVI) (AVI/ALB/AKO), [vmware-harden](https://github.com/vmware-skills/VMware-Harden) (compliance baselines).
@@ -40,8 +40,9 @@ VMware NSX DFW microsegmentation and security — 21 MCP tools for distributed f
 | **VM Tags** | list VM tags, apply tag, remove tag | 3 |
 | **Traceflow** | run trace, get result | 2 |
 | **IDPS** | list profiles, get status | 2 |
+| **DFW Exclusions** | list excluded members | 1 |
 
-**Total**: 21 tools (10 read-only + 11 write)
+**Total**: 22 tools (11 read-only + 11 write)
 
 ## Quick Install
 
@@ -59,6 +60,7 @@ vmware-nsx-security doctor
 - Run Traceflow to trace a packet path and diagnose drop reasons
 - Check IDPS profile configuration, signature status, and global IDS settings
 - Implement zero-trust microsegmentation between application tiers
+- Check the DFW exclusion list — which VMs no distributed-firewall rule reaches
 
 **Use companion skills for**:
 - NSX segments, gateways, NAT, routing, IPAM → `vmware-nsx`
@@ -100,6 +102,24 @@ vmware-nsx-security doctor
 3. `policy create app-microseg --category Application`
 4. Add rules in order: ALLOW management → ALLOW intra-tier → ALLOW web→app on app-port → DROP any-any with logging
 5. Verify with traceflow (see below) **before** enabling default-deny
+
+### Answer "is this VM protected by the DFW?"
+
+Never from the policy and rule listings alone. A VM on the **DFW exclusion list**
+has no distributed firewall in its datapath: the rules that name it exist and
+none of them applies. On a VCF estate the management VMs (vCenter, VCF
+Operations, NSX managers) are commonly excluded — one real 9.1 fabric had 10 of
+12 hosts on that list.
+
+1. `list_dfw_exclusions` — the whole list, resolved to the VMs in each group.
+   Check `scope`: `"user"` means system-owned exclusions are **not** in the
+   answer, so an empty list there is not proof of anything.
+2. `list_vm_tags <vm>` — `dfw_excluded` is the per-VM verdict. `true` means no
+   rule reaches it; `null` means the list could not be read, which is **not**
+   `false`, so say "unknown" rather than "protected".
+3. Only then read `list_dfw_policies` / `list_dfw_rules` for what is enforced on
+   the VMs that are not excluded. That listing carries `exclusion_note` whenever
+   anything is on the list.
 
 ### Apply NSX Tags to VMs
 
@@ -149,7 +169,7 @@ vmware-nsx-security group list --target nsx-lab
 
 Running with local or small models? See [`references/agent-guardrails.md`](references/agent-guardrails.md) for explicit operating rules.
 
-## MCP Tools (21 — 10 read, 11 write)
+## MCP Tools (22 — 11 read, 11 write)
 
 All MCP tools accept an optional `target` parameter.
 
@@ -159,12 +179,15 @@ Read the rows from `items` and check `truncated` before concluding a listing is 
 50-row default page looks identical to a whole estate without it. `total` is stated only where
 the scan proved it: it is the real count on an unfiltered listing that stayed under the
 1000-item `get_all` cap, and `null` for name-filtered listings, capped scans, and
-`list_dfw_rules` (whose fetch is bounded to the requested window). A `null` total with
-`truncated: true` means "there may be more" — page with `offset` to confirm. Errors return
+`list_dfw_rules` (whose fetch is bounded to the requested window). `truncated` says `items` is not the whole
+collection; it is still true on the last page of a walk, so page with `next_offset` and stop
+when it is `null`, never on `truncated`. The `hint` says which of the two you are looking at.
+Errors return
 `{error, hint}` (a dict, not a one-element list).
 
 | Category | Tool | Type | Description |
 |----------|------|:----:|-------------|
+| DFW Exclusions | `list_dfw_exclusions` | Read | List the DFW exclusion list — members no DFW rule reaches. Read this before calling any VM micro-segmented |
 | DFW Policy | `list_dfw_policies` | Read | List all DFW security policies with category, sequence, and rule count |
 | | `get_dfw_policy` | Read | Get policy details: category, stateful, locked, scope, tags |
 | | `create_dfw_policy` | Write | Create a new DFW policy with category and sequence number |

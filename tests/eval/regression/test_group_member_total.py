@@ -74,13 +74,25 @@ def test_withholding_is_stated_in_the_envelope() -> None:
 
 
 def test_member_rows_keep_their_shape_and_are_sanitized() -> None:
-    """Wrapping the list must not change what a row looks like."""
+    """Wrapping the list must not change what a row looks like.
+
+    ``dfw_excluded`` joined the row when the DFW exclusion list became visible:
+    a member the distributed firewall does not see is not protected by the
+    rules that name this group, and the row that lists the member is where that
+    has to be said. ``False`` here because this fixture's exclusion list is
+    empty — never absent, so an agent cannot read a missing key as "fine".
+    """
     page = {
         "results": [{"external_id": "vm-1", "display_name": "web\x1b[31m-01"}],
         "result_count": 1,
     }
     row = get_group(_client(page), "g1")["members"]["items"][0]
-    assert row == {"id": "vm-1", "display_name": "web[31m-01", "type": "VirtualMachine"}
+    assert row == {
+        "id": "vm-1",
+        "display_name": "web[31m-01",
+        "type": "VirtualMachine",
+        "dfw_excluded": False,
+    }
 
 
 # ---------------------------------------------------------------------------

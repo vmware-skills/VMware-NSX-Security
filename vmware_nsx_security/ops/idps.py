@@ -15,13 +15,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from vmware_policy import paginated, sanitize
+from vmware_policy import sanitize
 
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
     filter_by_name,
     known_total,
-    next_offset,
+    page_envelope,
     paginate,
     validate_page_args,
 )
@@ -116,12 +116,7 @@ def list_idps_profiles(
                 "path": sanitize(p.get("path", "")),
             }
         )
-    return paginated(
-        profiles,
-        limit=limit,
-        total=total,
-        next_offset=next_offset(len(profiles), limit, offset, total),
-    )
+    return page_envelope(profiles, limit=limit, offset=offset, total=total)
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,6 @@ from vmware_policy import vmware_tool
 
 from vmware_nsx_security.mcp_server._shared import (
     _DOCTOR_HINT,
-    _audit,
     _get_connection,
     _safe_error,
     _write_error,
@@ -126,13 +125,6 @@ def create_dfw_policy(
             category=category, sequence_number=sequence_number,
             stateful=stateful, description=description,
         )
-        _audit.log(
-            target=target or "default",
-            operation="create_dfw_policy",
-            resource=policy_id,
-            parameters={"display_name": display_name, "category": category},
-            result="ok",
-        )
         return result
     except Exception as e:
         return _write_error(
@@ -175,12 +167,6 @@ def update_dfw_policy(
             display_name=display_name, description=description,
             sequence_number=sequence_number, stateful=stateful,
         )
-        _audit.log(
-            target=target or "default",
-            operation="update_dfw_policy",
-            resource=policy_id,
-            result="ok",
-        )
         return result
     except Exception as e:
         return _write_error(
@@ -207,12 +193,6 @@ def delete_dfw_policy(policy_id: str, target: Optional[str] = None) -> dict:
 
         client = _get_connection(target)
         result = _fn(client, policy_id)
-        _audit.log(
-            target=target or "default",
-            operation="delete_dfw_policy",
-            resource=policy_id,
-            result="ok",
-        )
         return result
     except Exception as e:
         return _write_error(

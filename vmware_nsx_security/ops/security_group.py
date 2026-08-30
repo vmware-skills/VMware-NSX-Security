@@ -17,12 +17,13 @@ from vmware_policy import paginated, sanitize
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
     known_total,
-    next_offset,
+    page_envelope,
     paginate,
     validate_page_args,
 )
 from vmware_nsx_security.ops._search import search_by_name
 from vmware_nsx_security.ops._validate import validate_id as _validate_id
+from vmware_nsx_security.ops.exclusion import ExclusionIndex, exclusion_index
 
 if TYPE_CHECKING:
     from vmware_nsx_security.connection import NsxClient
@@ -95,12 +96,7 @@ def list_groups(
         }
         for g in paginate(items, limit, offset)
     ]
-    return paginated(
-        rows,
-        limit=limit,
-        total=total,
-        next_offset=next_offset(len(rows), limit, offset, total),
-    )
+    return page_envelope(rows, limit=limit, offset=offset, total=total)
 
 
 def get_group(client: NsxClient, group_id: str) -> dict:
@@ -118,6 +114,12 @@ def get_group(client: NsxClient, group_id: str) -> dict:
     """
     _validate_id(group_id, "group_id")
     g = client.get(f"{_GROUPS_BASE}/{group_id}")
+
+    # A group's members are who the DFW rules naming it reach — unless the
+    # group, or the member, is on the DFW exclusion list, in which case the
+    # rules reach nobody. Reporting membership without that is reporting
+    # protection that does not exist.
+    index = exclusion_index(client)
 
     # Try to get effective members. A failed fetch must NOT masquerade as
     # an empty group: member_count becomes None and members_error explains
@@ -142,9 +144,14 @@ def get_group(client: NsxClient, group_id: str) -> dict:
         member_count = wire_count if isinstance(wire_count, int) else len(fetched)
         members = [
             {
-                "id": sanitize(m.get("external_id", "")),
+                # RealizedVirtualMachine (the type this endpoint returns) has no
+                # ``external_id`` — that field belongs to the Manager API's
+                # VirtualMachine. Reading it alone produced an empty id for every
+                # member on NSX 9.x; ``id`` is the documented identity here.
+                "id": sanitize(m.get("external_id") or m.get("id", "")),
                 "display_name": sanitize(m.get("display_name", "")),
                 "type": "VirtualMachine",
+                "dfw_excluded": index.covers(m.get("display_name"), m.get("id")),
             }
             for m in fetched[:_MEMBER_SAMPLE]
         ]
@@ -162,6 +169,7 @@ def get_group(client: NsxClient, group_id: str) -> dict:
         "path": sanitize(g.get("path", "")),
         "member_count": member_count,
         "members": paginated(members, limit=_MEMBER_SAMPLE, total=member_count),
+        "dfw_excluded": _group_excluded(g, index),
         "_revision": g.get("_revision"),
     }
     if members_error is not None:
@@ -328,3 +336,15 @@ def delete_group(client: NsxClient, group_id: str) -> dict[str, str]:
     client.delete(f"{_GROUPS_BASE}/{group_id}")
     _log.info("Deleted security group: %s", group_id)
     return {"status": "deleted", "message": f"Security group '{group_id}' deleted."}
+
+
+def _group_excluded(group: dict, index: ExclusionIndex) -> bool | None:
+    """Whether this group itself sits on the DFW exclusion list.
+
+    ``None`` when the list could not be read. A group that is not on the list
+    can still hold members excluded through another group, which is why the
+    members carry their own flag rather than inheriting this one.
+    """
+    if index.error and not index.group_paths:
+        return None
+    return group.get("path") in index.group_paths

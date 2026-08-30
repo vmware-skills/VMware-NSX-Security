@@ -5,7 +5,7 @@
 > 本项目由 VMware 工程师维护的社区项目，非 VMware 官方产品。
 > VMware 官方开发者工具请访问 [developer.broadcom.com](https://developer.broadcom.com)。
 
-VMware NSX DFW 微分段与安全管理 MCP skill — 21 个工具，涵盖分布式防火墙策略与规则、安全组、VM 标签、Traceflow 数据包追踪和 IDPS。
+VMware NSX DFW 微分段与安全管理 MCP skill — 22 个工具，涵盖分布式防火墙策略与规则、安全组、VM 标签、DFW 排除列表、Traceflow 数据包追踪和 IDPS。
 
 > **配套 skill**：[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)（网络）、[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)（VM 生命周期）、[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)（监控）
 
@@ -61,8 +61,17 @@ pip install --no-index --find-links dist vmware-nsx-security
 | VM 标签 | 列出标签、应用标签、移除标签（3 个） |
 | Traceflow | 运行追踪、获取结果（2 个） |
 | IDPS | 列出 Profile、签名状态 + 全局设置（2 个） |
+| DFW 排除列表 | 列出被排除的成员（1 个） |
 
-**共 21 个 MCP 工具**（10 只读 + 11 写入）
+**共 22 个 MCP 工具**（11 只读 + 11 写入）
+
+### DFW 排除列表
+
+在 NSX 分布式防火墙排除列表上的虚拟机，其数据路径中没有 DFW：指名它的规则依然存在，但一条都不生效。
+在 VCF 环境中，管理类虚拟机（vCenter、VCF Operations、NSX Manager）通常都在该列表上——某套真实的
+NSX 9.1 环境中 12 台虚拟机有 10 台被排除。`list_dfw_exclusions` 列出该列表，`list_vm_tags` /
+`get_group` / `list_dfw_policies` 会指出成员是否被排除，因此绝不会对 DFW 根本看不到的虚拟机报告
+「受 DFW 策略保护」。`dfw_excluded: null` 表示无法读取该列表——这与 `false` 不是一回事。
 
 ## MCP 服务器配置
 

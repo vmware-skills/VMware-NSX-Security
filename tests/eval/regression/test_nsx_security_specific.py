@@ -591,10 +591,10 @@ def test_jump_to_application_constraint_documented() -> None:
     assert "JUMP_TO_APPLICATION" in str(exc.value)
 
 
-# ── 踩坑 #34: MCP tool surface must match the declared 21 (10R/11W) ──────
+# ── 踩坑 #34: MCP tool surface must match the declared 22 (11R/11W) ──────
 
 
-def test_mcp_exposes_all_21_tools() -> None:
+def test_mcp_exposes_all_22_tools() -> None:
     import asyncio
 
     from vmware_nsx_security.mcp_server.server import mcp
@@ -614,6 +614,7 @@ def test_mcp_exposes_all_21_tools() -> None:
         "get_group",
         "get_idps_status",
         "get_traceflow_result",
+        "list_dfw_exclusions",
         "list_dfw_policies",
         "list_dfw_rules",
         "list_groups",
