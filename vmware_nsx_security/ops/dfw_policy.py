@@ -14,7 +14,9 @@ from vmware_policy import paginated, sanitize
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
     known_total,
+    next_offset,
     paginate,
+    validate_page_args,
 )
 from vmware_nsx_security.ops._search import search_by_name
 from vmware_nsx_security.ops._validate import validate_id as _validate_id
@@ -68,12 +70,20 @@ def list_dfw_policies(
     Args:
         client: Authenticated NsxClient instance.
         name_filter: Optional substring/glob match on display_name.
-        limit: Max policies to return (default 50). Avoids flooding
-            agent context on large estates.
-        offset: Number of matched policies to skip (pagination).
+        limit: Page size — an integer from 1 to 1000 (default 50). Avoids
+            flooding agent context on large estates. ``0`` and negatives are
+            rejected, not read as "everything".
+        offset: Number of matched policies to skip. 0 or more; pass the
+            previous response's ``next_offset`` to walk the collection.
 
     Returns:
-        The family list envelope; ``items`` holds policy summary dicts with
+        The family list envelope plus ``next_offset`` — the offset of the next
+        page, or ``None`` when this page ends the collection. Stop a paging
+        loop on ``next_offset is None``, never on ``truncated``: ``truncated``
+        says this page is not the whole collection, which stays true on the
+        last page of a paged walk.
+
+        ``items`` holds policy summary dicts with
         id, display_name, category, sequence_number, and rule count.
         ``total`` is the real policy count on the unfiltered path when the
         scan stayed under the ``get_all`` cap, and ``None`` otherwise —
@@ -94,6 +104,7 @@ def list_dfw_policies(
         every count as unknown rather than fetching each policy's rules to
         count them.
     """
+    validate_page_args(limit, offset)
     if name_filter:
         items = search_by_name(client, "SecurityPolicy", _DFW_BASE, name_filter)
         total = None
@@ -113,7 +124,9 @@ def list_dfw_policies(
         }
         for p in paginate(items, limit, offset)
     ]
-    extra: dict[str, Any] = {}
+    extra: dict[str, Any] = {
+        "next_offset": next_offset(len(rows), limit, offset, total),
+    }
     if any(row["rule_count"] is None for row in rows):
         extra["rule_count_note"] = (
             "rule_count is null for one or more policies: this NSX Manager "
@@ -303,24 +316,31 @@ def list_dfw_rules(
     Args:
         client: Authenticated NsxClient instance.
         policy_id: Policy ID whose rules to list.
-        limit: Max rules to return (default 50). Large Application policies
-            can hold hundreds-to-thousands of rules, so the fetch is bounded
-            server-side rather than draining every rule into agent context.
-        offset: Number of rules to skip (pagination).
+        limit: Page size — an integer from 1 to 1000 (default 50). Large
+            Application policies can hold hundreds-to-thousands of rules, so
+            the fetch is bounded server-side rather than draining every rule
+            into agent context. ``0`` and negatives are rejected.
+        offset: Number of rules to skip. 0 or more; pass the previous
+            response's ``next_offset`` to walk the policy.
 
     Returns:
-        The family list envelope; ``items`` holds rule summary dicts with id,
+        The family list envelope plus ``next_offset`` — the offset of the next
+        page, or ``None`` when this page ends the rule set. Stop a paging loop
+        on ``next_offset is None``, never on ``truncated``.
+
+        ``items`` holds rule summary dicts with id,
         display_name, action, sources, destinations, services, scope, and
         hit-count fields. ``total`` is always ``None`` here: the fetch is
         deliberately bounded to the requested window, so the rule count behind
         it was never retrieved and must not be guessed. A full page therefore
-        reports ``truncated: true`` — page with ``offset`` to confirm.
+        reports ``truncated: true`` and carries a ``next_offset``; the walk
+        ends on the first short or empty page.
     """
     _validate_id(policy_id, "policy_id")
+    validate_page_args(limit, offset)
     # Fetch only up to the requested window (offset + limit) rather than the
-    # whole rule set; a non-positive limit yields an empty window (paginate
-    # returns []), so bound the fetch to 1 instead of the default backstop.
-    fetch_cap = offset + limit if limit > 0 else 1
+    # whole rule set.
+    fetch_cap = offset + limit
     items = client.get_all(f"{_DFW_BASE}/{policy_id}/rules", limit=fetch_cap)
     items = paginate(items, limit, offset)
     rows = [
@@ -341,4 +361,8 @@ def list_dfw_rules(
         }
         for r in items
     ]
-    return paginated(rows, limit=limit)
+    return paginated(
+        rows,
+        limit=limit,
+        next_offset=next_offset(len(rows), limit, offset, None),
+    )

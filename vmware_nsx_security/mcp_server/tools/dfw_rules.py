@@ -32,11 +32,17 @@ def list_dfw_rules(
     can hold thousands of rules. Get policy_id from list_dfw_policies;
     then get_dfw_rule_stats for a rule's hit counts.
 
+    Page with 'next_offset': pass the value back as 'offset' and stop when it
+    is null. Do not loop on 'truncated' — that says this page is not the whole
+    collection, which stays true on the last page of a walk.
+
     Args:
         policy_id: Parent policy identifier.
         target: Optional NSX Manager target from config.
-        limit: Max rules to return (default 50).
-        offset: Number of rules to skip (pagination).
+        limit: Page size, 1..1000 (default 50). Not a way to ask for
+            everything — 0 or negative is rejected.
+        offset: Rules to skip, 0 or more. Pass the previous response's
+            'next_offset'.
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import list_dfw_rules as _fn

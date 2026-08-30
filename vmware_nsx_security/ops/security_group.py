@@ -17,7 +17,9 @@ from vmware_policy import paginated, sanitize
 from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
     known_total,
+    next_offset,
     paginate,
+    validate_page_args,
 )
 from vmware_nsx_security.ops._search import search_by_name
 from vmware_nsx_security.ops._validate import validate_id as _validate_id
@@ -50,12 +52,20 @@ def list_groups(
     Args:
         client: Authenticated NsxClient instance.
         name_filter: Optional substring/glob match on display_name.
-        limit: Max groups to return (default 50). Avoids flooding agent
-            context on large estates.
-        offset: Number of matched groups to skip (pagination).
+        limit: Page size — an integer from 1 to 1000 (default 50). Avoids
+            flooding agent context on large estates. ``0`` and negatives are
+            rejected, not read as "everything".
+        offset: Number of matched groups to skip. 0 or more; pass the previous
+            response's ``next_offset`` to walk the collection.
 
     Returns:
-        The family list envelope; ``items`` holds group summary dicts with
+        The family list envelope plus ``next_offset`` — the offset of the next
+        page, or ``None`` when this page ends the collection. Stop a paging
+        loop on ``next_offset is None``, never on ``truncated``: ``truncated``
+        says this page is not the whole collection, which stays true on the
+        last page of a paged walk.
+
+        ``items`` holds group summary dicts with
         id, display_name, expression type counts, and member count.
         ``total`` is the real group count on the unfiltered path when the
         scan stayed under the ``get_all`` cap, and ``None`` otherwise —
@@ -67,6 +77,7 @@ def list_groups(
         so a match ranked past the ``get_all`` safety cap on a large estate
         is still found — a plain client-side filter would silently miss it.
     """
+    validate_page_args(limit, offset)
     if name_filter:
         items = search_by_name(client, "Group", _GROUPS_BASE, name_filter)
         total = None
@@ -84,7 +95,12 @@ def list_groups(
         }
         for g in paginate(items, limit, offset)
     ]
-    return paginated(rows, limit=limit, total=total)
+    return paginated(
+        rows,
+        limit=limit,
+        total=total,
+        next_offset=next_offset(len(rows), limit, offset, total),
+    )
 
 
 def get_group(client: NsxClient, group_id: str) -> dict:

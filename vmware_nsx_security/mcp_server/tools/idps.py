@@ -25,11 +25,17 @@ def list_idps_profiles(
     page as complete, narrow with name_filter or page with offset.
     Then get_idps_status for the signature-bundle version and IDS settings.
 
+    Page with 'next_offset': pass the value back as 'offset' and stop when it
+    is null. Do not loop on 'truncated' — that says this page is not the whole
+    collection, which stays true on the last page of a walk.
+
     Args:
         target: Optional NSX Manager target from config.
         name_filter: Substring/glob match on profile display_name.
-        limit: Max profiles to return (default 50).
-        offset: Matched profiles to skip (pagination).
+        limit: Page size, 1..1000 (default 50). Not a way to ask for
+            everything — 0 or negative is rejected.
+        offset: Matched profiles to skip, 0 or more. Pass the previous
+            response's 'next_offset'.
     """
     try:
         from vmware_nsx_security.ops.idps import list_idps_profiles as _fn

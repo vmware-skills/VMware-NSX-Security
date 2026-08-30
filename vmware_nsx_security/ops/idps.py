@@ -21,7 +21,9 @@ from vmware_nsx_security.ops._paginate import (
     DEFAULT_LIMIT,
     filter_by_name,
     known_total,
+    next_offset,
     paginate,
+    validate_page_args,
 )
 
 if TYPE_CHECKING:
@@ -57,12 +59,20 @@ def list_idps_profiles(
     Args:
         client: Authenticated NsxClient instance.
         name_filter: Optional substring/glob match on display_name.
-        limit: Max profiles to return (default 50). Avoids flooding agent
-            context on large estates.
-        offset: Number of matched profiles to skip (pagination).
+        limit: Page size — an integer from 1 to 1000 (default 50). Avoids
+            flooding agent context on large estates. ``0`` and negatives are
+            rejected, not read as "everything".
+        offset: Number of matched profiles to skip. 0 or more; pass the
+            previous response's ``next_offset`` to walk the collection.
 
     Returns:
-        The family list envelope; ``items`` holds IDPS profile summary dicts
+        The family list envelope plus ``next_offset`` — the offset of the next
+        page, or ``None`` when this page ends the collection. Stop a paging
+        loop on ``next_offset is None``, never on ``truncated``: ``truncated``
+        says this page is not the whole collection, which stays true on the
+        last page of a paged walk.
+
+        ``items`` holds IDPS profile summary dicts
         with id, display_name, criteria (filter_name/filter_value pairs),
         profile_severity (comma-joined), and overridden_signature_count.
         ``total`` is the real profile count on the unfiltered path when the
@@ -70,6 +80,7 @@ def list_idps_profiles(
         cap is measured on the raw fetch, before the client-side name filter,
         since a filter can shrink a capped scan and disguise the gap.
     """
+    validate_page_args(limit, offset)
     fetched = client.get_all(f"{_IDPS_BASE}/profiles")
     total = None if name_filter else known_total(fetched)
     items = filter_by_name(fetched, name_filter)
@@ -105,7 +116,12 @@ def list_idps_profiles(
                 "path": sanitize(p.get("path", "")),
             }
         )
-    return paginated(profiles, limit=limit, total=total)
+    return paginated(
+        profiles,
+        limit=limit,
+        total=total,
+        next_offset=next_offset(len(profiles), limit, offset, total),
+    )
 
 
 # ---------------------------------------------------------------------------

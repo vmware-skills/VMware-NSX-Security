@@ -31,6 +31,10 @@ def list_dfw_policies(
     name_filter or page with offset. Then get_dfw_policy for one policy's
     detail, or list_dfw_rules for the rules inside.
 
+    Page with 'next_offset': pass the value back as 'offset' and stop when it
+    is null. Do not loop on 'truncated' — that says this page is not the whole
+    collection, which stays true on the last page of a walk.
+
     'rule_count' is null when NSX did not report one — that means "not
     retrieved", NOT "no rules", so do not conclude a null policy enforces
     nothing; call list_dfw_rules on it. Passing name_filter makes every
@@ -40,8 +44,10 @@ def list_dfw_policies(
     Args:
         target: NSX Manager target name from config; default if omitted.
         name_filter: Substring/glob match on policy display_name.
-        limit: Max policies to return (default 50).
-        offset: Matched policies to skip (pagination).
+        limit: Page size, 1..1000 (default 50). Not a way to ask for
+            everything — 0 or negative is rejected.
+        offset: Matched policies to skip, 0 or more. Pass the previous
+            response's 'next_offset'.
     """
     try:
         from vmware_nsx_security.ops.dfw_policy import list_dfw_policies as _fn

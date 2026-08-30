@@ -52,8 +52,14 @@ NameFilterOption = Annotated[
     str | None,
     typer.Option("--name-filter", help="Substring/glob match on display name"),
 ]
-LimitOption = Annotated[int, typer.Option("--limit", help="Max results to return (default 50)")]
-OffsetOption = Annotated[int, typer.Option("--offset", help="Number of matched results to skip")]
+LimitOption = Annotated[
+    int,
+    typer.Option("--limit", help="Page size, 1-1000 (default 50); 0 or negative is rejected"),
+]
+OffsetOption = Annotated[
+    int,
+    typer.Option("--offset", help="Rows to skip, 0 or more; use next_offset from the last page"),
+]
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
