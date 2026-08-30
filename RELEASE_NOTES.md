@@ -1,3 +1,38 @@
+## v1.8.11 — every DFW policy reported zero rules, and paging never ended
+
+Found against a real NSX 9.1.0.0200 deployment.
+
+**`list_dfw_policies` reported `rule_count: 0` for every policy.** The real
+value was 6, two of them DROP rules — so the tool said nothing was enforced
+anywhere. NSX's `SecurityPolicy` does carry `rule_count`, but the collection
+endpoint populates it only when the caller passes `include_rule_count`; the
+default is false. The listing asked for nothing, the key was absent from every
+row, and `p.get("rule_count", 0)` turned "the manager did not answer" into "the
+answer is none". The unfiltered listing now requests it — riding the call it
+already makes, no extra request — and a count that genuinely cannot be retrieved
+comes back `null` with a note, never a fabricated `0`. The `name_filter` path
+goes through the Search API, which serves indexed objects and cannot learn the
+counts; it reports null rather than inventing them.
+
+**A paging loop never terminated.** The four tools that already had `offset`
+reported `truncated: true` on the last page, and on the empty page past the end.
+The arithmetic ignored `offset` entirely: `returned < total` is true forever
+once you are reading a collection in slices. They now emit `next_offset` — the
+value to pass back, or `null` when the collection ends — and `truncated` keeps
+its own meaning, which is "is `items` the whole collection?", still true on the
+last page of a walk. Two questions, two keys.
+
+`limit=0`, negatives and anything above the maximum are rejected with a message
+naming the range, rather than clamped or read as "unlimited".
+
+**`verify_ssl: false` needed a package this skill never declared** — a clean
+install died with `No module named 'urllib3'` against a self-signed target,
+which is the VCF default. The guarded code was already inert: this client is
+httpx, which never used urllib3. Removed rather than declared.
+
+**`doctor` reported on a different config file from the one the tools load**,
+and the Dockerfile could not build the wheel it installs.
+
 ## v1.8.10 — two wrong numbers: the server's own version, and the advertised tool count
 
 Both defects were invisible to the test suites and both were user-facing.
