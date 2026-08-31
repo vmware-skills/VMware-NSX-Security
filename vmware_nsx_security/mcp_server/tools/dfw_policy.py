@@ -1,6 +1,6 @@
 """MCP tools for DFW security policies (1 read collection, 1 read detail, 3 write)."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 from vmware_policy import vmware_tool
 
@@ -93,7 +93,7 @@ def get_dfw_policy(policy_id: str, target: Optional[str] = None) -> dict:
 def create_dfw_policy(
     policy_id: str,
     display_name: str,
-    category: str = "Application",
+    category: Literal["Ethernet", "Emergency", "Infrastructure", "Environment", "Application"] = "Application",
     sequence_number: int = 10,
     stateful: bool = True,
     description: str = "",

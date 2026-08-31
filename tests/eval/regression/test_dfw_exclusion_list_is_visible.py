@@ -205,7 +205,7 @@ def _code_strings(path: pathlib.Path) -> str:
     why this endpoint must not be used, and a gate that cannot tell that apart
     from a call would force the reason out of the code that needs it.
     """
-    tree = ast.parse(path.read_text())
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     docstrings = {
         node.body[0].value
         for node in ast.walk(tree)

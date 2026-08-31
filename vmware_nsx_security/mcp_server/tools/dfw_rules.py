@@ -1,6 +1,6 @@
 """MCP tools for DFW firewall rules (1 read stats, 3 write)."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 from vmware_policy import vmware_tool
 
@@ -99,13 +99,13 @@ def create_dfw_rule(
     policy_id: str,
     rule_id: str,
     display_name: str,
-    action: str = "ALLOW",
+    action: Literal["ALLOW", "DROP", "REJECT", "JUMP_TO_APPLICATION"] = "ALLOW",
     sources: Optional[list[str]] = None,
     destinations: Optional[list[str]] = None,
     services: Optional[list[str]] = None,
     scope: Optional[list[str]] = None,
-    direction: str = "IN_OUT",
-    ip_protocol: str = "IPV4_IPV6",
+    direction: Literal["IN", "OUT", "IN_OUT"] = "IN_OUT",
+    ip_protocol: Literal["IPV4", "IPV6", "IPV4_IPV6"] = "IPV4_IPV6",
     logged: bool = False,
     disabled: bool = False,
     sequence_number: int = 10,
@@ -165,7 +165,7 @@ def update_dfw_rule(
     policy_id: str,
     rule_id: str,
     display_name: Optional[str] = None,
-    action: Optional[str] = None,
+    action: Optional[Literal["ALLOW", "DROP", "REJECT", "JUMP_TO_APPLICATION"]] = None,
     sources: Optional[list[str]] = None,
     destinations: Optional[list[str]] = None,
     services: Optional[list[str]] = None,

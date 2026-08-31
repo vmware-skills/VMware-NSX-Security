@@ -98,7 +98,7 @@ def audit_log(tmp_path, monkeypatch):
     def entries() -> list[dict]:
         if not path.exists():
             return []
-        return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
     return entries
 
@@ -251,5 +251,5 @@ def test_no_write_tool_still_audits_from_its_own_body():
     tools_dir = pathlib.Path(srv.__file__).resolve().parent / "tools"
     sources = sorted(tools_dir.glob("*.py"))
     assert sources, f"no tool modules under {tools_dir} — this check would find nothing"
-    offenders = [p.name for p in sources if "_audit.log(" in p.read_text()]
+    offenders = [p.name for p in sources if "_audit.log(" in p.read_text(encoding="utf-8")]
     assert not offenders, f"{offenders} still audit from the tool body; entries would be doubled"

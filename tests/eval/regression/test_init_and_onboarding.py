@@ -47,7 +47,7 @@ def test_init_writes_grep_safe_env(_wizard_env: Path, monkeypatch: pytest.Monkey
     )
     assert init_wizard.run_init(skip_test=True) == 0
 
-    env_text = (_wizard_env / ".env").read_text()
+    env_text = (_wizard_env / ".env").read_text(encoding="utf-8")
     assert "VMWARE_NSX_SECURITY_NSX_LAB_PASSWORD=b64:" in env_text
     assert "S3cr3t!pw" not in env_text  # never plaintext on disk
     assert (_wizard_env / ".env").stat().st_mode & 0o777 == 0o600
@@ -65,7 +65,7 @@ def test_init_writes_config_matching_load_config_shape(_wizard_env: Path, monkey
     )
     assert init_wizard.run_init(skip_test=True) == 0
 
-    raw = yaml.safe_load((_wizard_env / "config.yaml").read_text())
+    raw = yaml.safe_load((_wizard_env / "config.yaml").read_text(encoding="utf-8"))
     # targets must be a dict keyed by name, matching load_config's parser.
     assert raw["targets"]["nsx-prod"]["host"] == "nsx.example.com"
     assert raw["targets"]["nsx-prod"]["verify_ssl"] is False
@@ -91,7 +91,7 @@ def _init_registered() -> bool:
 def test_doctor_init_reference_is_backed_by_real_command() -> None:
     from vmware_nsx_security import doctor
 
-    src = Path(doctor.__file__).read_text()
+    src = Path(doctor.__file__).read_text(encoding="utf-8")
     if "vmware-nsx-security init" in src:
         assert _init_registered(), "doctor recommends init but no such command is registered"
 
