@@ -82,13 +82,37 @@ def test_cli_tag_remove_calls_ops_and_audits_ok() -> None:
          patch.object(cli, "_audit", audit), \
          patch("vmware_nsx_security.ops.tags.remove_vm_tag") as op:
         op.return_value = {"status": "removed"}
+        # Two prompts: removing a tag can take the VM out of a security group,
+        # and its firewall policy changes with it.
         result = CliRunner().invoke(
-            cli.app, ["tag", "remove", "vm-1", "--scope", "env", "--value", "prod"]
+            cli.app, ["tag", "remove", "vm-1", "--scope", "env", "--value", "prod"],
+            input="y\ny\n",
         )
     assert result.exit_code == 0, result.output
     op.assert_called_once_with(client, "vm-1", "env", "prod")
     assert audit.log.call_args.kwargs["operation"] == "remove_vm_tag"
     assert audit.log.call_args.kwargs["result"] == "ok"
+
+
+def test_cli_tag_remove_aborts_when_the_second_prompt_is_declined() -> None:
+    """The guard is the abort, not the prompt.
+
+    A confirmation that prints and then proceeds anyway is decoration. This
+    declines at the second prompt and asserts the ops function was never
+    reached — the half worth testing.
+    """
+    from vmware_nsx_security import cli
+
+    client = MagicMock()
+    with patch.object(cli, "_get_connection", return_value=(client, MagicMock())), \
+         patch.object(cli, "_audit", MagicMock()), \
+         patch("vmware_nsx_security.ops.tags.remove_vm_tag") as op:
+        result = CliRunner().invoke(
+            cli.app, ["tag", "remove", "vm-1", "--scope", "env", "--value", "prod"],
+            input="y\nn\n",
+        )
+    assert result.exit_code != 0
+    op.assert_not_called()
 
 
 def test_cli_write_failure_audited_as_error() -> None:

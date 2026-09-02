@@ -175,14 +175,23 @@ def _dry_run_print(
     console.print()
 
 
-def _confirm_destructive(resource_type: str, resource_id: str) -> bool:
-    """Double-confirmation prompt for destructive operations."""
-    console.print(f"[bold red]WARNING:[/] This will permanently delete {resource_type} '[bold]{resource_id}[/]'.")
+def _confirm_destructive(resource_type: str, resource_id: str, verb: str = "delete") -> bool:
+    """Double-confirmation prompt for destructive operations.
+
+    ``verb`` exists because removing a tag is not deleting an object, and a
+    prompt that says "permanently delete" about a tag removal is telling the
+    operator the wrong thing about what is at stake — while the actual stake
+    (the VM may leave a security group, and its firewall policy changes with it)
+    goes unmentioned.
+    """
+    console.print(
+        f"[bold red]WARNING:[/] This will {verb} {resource_type} '[bold]{resource_id}[/]'."
+    )
     first = typer.confirm("Are you sure you want to proceed?", default=False)
     if not first:
         return False
     second = typer.confirm(
-        f"Second confirmation: DELETE {resource_type} '{resource_id}'?",
+        f"Second confirmation: {verb.upper()} {resource_type} '{resource_id}'?",
         default=False,
     )
     return second
@@ -576,6 +585,12 @@ def tag_remove(
             parameters={"external_id": vm_id, "scope": scope, "tag": value},
         )
         return
+
+    # Two prompts: removing a tag can take the VM out of a security group, and
+    # its firewall policy changes with it. The blast radius is not the tag.
+    if not _confirm_destructive(f"tag {scope}={value} from VM", vm_id, verb="remove"):
+        console.print("[yellow]Aborted.[/]")
+        raise typer.Exit(1)
 
     client, _ = _get_connection(target, config)
     with _audit_write(t, "remove_vm_tag", vm_id, {"scope": scope, "tag": value}):
