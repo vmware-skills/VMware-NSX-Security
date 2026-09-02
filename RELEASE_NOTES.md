@@ -1,3 +1,18 @@
+## v1.10.0 — `tag remove` now confirms — a behaviour change for scripts
+
+**Breaking for automation.** `tag remove` ran unattended and now asks twice, like
+the three other destructive commands here. It takes no bypass flag, so a script
+that called it without input will wait. Use `--dry-run` to preview, and expect to
+drive the prompts.
+
+The reason is not the tag. Removing one can take the VM out of a dynamic security
+group, and its firewall policy changes with it — the exposure that opens is not
+undone by re-adding the tag afterwards.
+
+The shared prompt also stopped saying "permanently delete" about a tag removal.
+It was telling the operator the wrong thing about what was at stake while leaving
+the actual stake unmentioned.
+
 ## v1.9.2 — one answer per .env, on every platform
 
 `.env` permissions are decided by `vmware_policy.fsperms` instead of POSIX mode
