@@ -18,6 +18,9 @@ from vmware_policy import PolicyDenied, guarded
 
 from vmware_nsx_security.notify.audit import AuditLogger
 import sys
+# Registers this skill's environment resolver, so environment-scoped policy
+# rules apply to @guarded CLI writes exactly as they do to MCP tools.
+import vmware_nsx_security.policy_environment  # noqa: F401 — imported to register the resolver; do not remove
 
 
 def _harden_console_encoding() -> None:
@@ -260,7 +263,7 @@ def policy_get(
 
 @policy_app.command("create")
 @_cli_errors
-@guarded(risk_level='medium')
+@guarded("create_dfw_policy", risk_level="medium")
 def policy_create(
     policy_id: str = typer.Argument(..., help="Policy ID"),
     display_name: str = typer.Option(..., "--name", help="Display name"),
@@ -301,7 +304,7 @@ def policy_create(
 
 @policy_app.command("delete")
 @_cli_errors
-@guarded(risk_level='high')
+@guarded("delete_dfw_policy", risk_level="high")
 def policy_delete(
     policy_id: str = typer.Argument(..., help="Policy ID to delete"),
     dry_run: DryRunOption = False,
@@ -389,7 +392,7 @@ def rule_stats(
 
 @rule_app.command("delete")
 @_cli_errors
-@guarded(risk_level='high')
+@guarded("delete_dfw_rule", risk_level="high")
 def rule_delete(
     policy_id: str = typer.Argument(..., help="Parent policy ID"),
     rule_id: str = typer.Argument(..., help="Rule ID to delete"),
@@ -473,7 +476,7 @@ def group_get(
 
 @group_app.command("delete")
 @_cli_errors
-@guarded(risk_level='high')
+@guarded("delete_group", risk_level="high")
 def group_delete(
     group_id: str = typer.Argument(..., help="Group ID to delete"),
     dry_run: DryRunOption = False,
@@ -532,7 +535,7 @@ def tag_list(
 
 @tag_app.command("apply")
 @_cli_errors
-@guarded(risk_level='medium')
+@guarded("apply_vm_tag", risk_level="medium")
 def tag_apply(
     vm_id: str = typer.Argument(..., help="VM external ID"),
     scope: str = typer.Option(..., "--scope", help="Tag scope"),
@@ -563,7 +566,7 @@ def tag_apply(
 
 @tag_app.command("remove")
 @_cli_errors
-@guarded(risk_level='medium')
+@guarded("remove_vm_tag", risk_level="medium")
 def tag_remove(
     vm_id: str = typer.Argument(..., help="VM external ID"),
     scope: str = typer.Option(..., "--scope", help="Tag scope to remove"),
@@ -605,7 +608,7 @@ def tag_remove(
 
 @traceflow_app.command("run")
 @_cli_errors
-@guarded(risk_level='medium')
+@guarded("run_traceflow", risk_level="medium")
 def traceflow_run(
     src_lport: str = typer.Argument(..., help="Source logical port ID"),
     src_ip: str = typer.Option(..., "--src-ip", help="Source IP address"),

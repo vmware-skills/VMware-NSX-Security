@@ -169,6 +169,97 @@ def test_every_write_cli_command_is_guarded():
     )
 
 
+def _op_to_mcp_tools() -> dict[str, set[tuple[str, str]]]:
+    """Write ops function -> {(MCP write tool name, defining module)} whose body calls it.
+
+    Same function-scoped import resolution as ``_write_ops`` — the per-tool
+    ``_fn`` alias must stay bound to its own op or every tool in a module
+    collapses onto the last import and the twin lookup points at the wrong tool.
+    """
+    targets = _write_tool_names()
+    out: dict[str, set[tuple[str, str]]] = {}
+    for path in sorted(TOOLS_DIR.rglob("*.py")):
+        module = ".".join(path.relative_to(_REPO).with_suffix("").parts)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        base_map, base_mods = _module_refs(tree)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name in targets:
+                func_map, mods = _func_refs(node, base_map, base_mods)
+                for op in _ops_calls(node, func_map, mods):
+                    out.setdefault(op, set()).add((node.name, module))
+    return out
+
+
+# Guarded CLI writes with NO MCP twin, each with the reason it stays CLI-only and
+# keeps its own operation name. Empty today: every guarded command mirrors
+# exactly one MCP write tool. An entry here is a decision, not a default — a
+# command landing here silently would be a deny rule that cannot reach it.
+_CLI_ONLY_WRITES: dict[str, str] = {}
+
+
+def test_guarded_cli_writes_carry_their_mcp_tool_name():
+    """A deny rule names a tool; it must stop the CLI twin of that tool too (HLD I-3).
+
+    ``@guarded`` defaults the tool name to the function's ``__name__``, so
+    ``policy delete`` was guarded as ``policy_delete`` while its MCP twin is
+    ``delete_dfw_policy`` — a rule denying ``delete_dfw_policy`` refused the
+    agent and let the same delete through the CLI, and the two surfaces wrote
+    the one audit sink under two names. The twin is DERIVED: the MCP write tool
+    that calls the same ops function the command calls.
+    """
+    import importlib
+
+    from vmware_nsx_security import cli
+
+    op_tools = _op_to_mcp_tools()
+    write_ops = frozenset(op_tools)
+    checked: list[str] = []
+    mismatched: list[str] = []
+    for path in CLI_FILES:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        base_map, base_mods = _module_refs(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            fn = getattr(cli, node.name, None)
+            if not getattr(fn, "_is_guarded", False):
+                continue  # unguarded writes are test_every_write_cli_command_is_guarded's finding
+            func_map, mods = _func_refs(node, base_map, base_mods)
+            ops = _ops_calls(node, func_map, mods) & write_ops
+            twins = set().union(*(op_tools[o] for o in ops)) if ops else set()
+            if not twins:
+                assert node.name in _CLI_ONLY_WRITES, (
+                    f"{node.name} is @guarded but mirrors no MCP write tool — either "
+                    f"it calls an op the derivation cannot see, or it is a CLI-only "
+                    f"write that needs an explicit _CLI_ONLY_WRITES entry with a reason"
+                )
+                continue
+            assert len(twins) == 1, (
+                f"{node.name} maps to several MCP tools {sorted(twins)} — pick "
+                f"the one it mirrors explicitly"
+            )
+            ((twin, module),) = twins
+            tool_fn = getattr(importlib.import_module(module), twin)
+            checked.append(f"{node.name}->{twin}")
+            if fn._guarded_tool != twin:
+                mismatched.append(
+                    f"{node.name}: guarded as {fn._guarded_tool!r}, MCP tool {twin!r}"
+                )
+            elif fn._risk_level != tool_fn._risk_level:
+                mismatched.append(
+                    f"{node.name}: risk {fn._risk_level!r}, MCP tool {twin!r} "
+                    f"risk {tool_fn._risk_level!r}"
+                )
+    # 7 guarded write commands exist today (see test above); a derivation that
+    # checks fewer has stopped resolving twins.
+    assert len(checked) >= 7, f"only {checked} checked — derivation likely stale"
+    assert not mismatched, (
+        "these CLI writes are guarded under a different name or risk than their "
+        "MCP tool, so one deny rule does not scope both surfaces — pass the MCP "
+        "tool name to @guarded(...): " + "; ".join(mismatched)
+    )
+
+
 def test_high_blast_radius_commands_are_derived_and_guarded():
     """Pin named destructive commands so a broad-but-wrong derivation cannot pass.
 

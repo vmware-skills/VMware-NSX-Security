@@ -1,3 +1,50 @@
+## v1.11.0 — CLI writes answer to the same rules as the MCP tools
+
+**CLI writes are authorised and audited under their MCP tool names.** A deny rule
+in `~/.vmware/rules.yaml` names an operation, and the seven guarded CLI commands
+were checked under their Python function names instead — so a rule against
+`delete_dfw_policy` stopped the agent and let `policy delete` do the same thing
+from a shell. One rule now scopes both surfaces:
+
+| CLI command | Operation name (was) |
+|---|---|
+| `policy create` | `create_dfw_policy` (`policy_create`) |
+| `policy delete` | `delete_dfw_policy` (`policy_delete`) |
+| `rule delete` | `delete_dfw_rule` (`rule_delete`) |
+| `group delete` | `delete_group` (`group_delete`) |
+| `tag apply` | `apply_vm_tag` (`tag_apply`) |
+| `tag remove` | `remove_vm_tag` (`tag_remove`) |
+| `traceflow run` | `run_traceflow` (`traceflow_run`) |
+
+Risk levels were already equal to the MCP tools' and are unchanged. **Audit rows
+for these commands carry the new names from this release on**; rows written
+before it keep the old ones, so a query over `~/.vmware/audit.db` that spans the
+upgrade needs both. A rule you wrote against an old name no longer matches —
+rename it to the MCP tool name. A regression test now derives each command's MCP
+twin from the ops function both call and fails if the names or risks drift.
+
+**Environment-scoped deny rules now apply to CLI writes.** The skill's environment resolver was
+registered only when the MCP server was imported, which the CLI never does — so a
+`freeze-production-writes` rule stopped the MCP tool and not the CLI command doing the same
+thing. It now lives in `policy_environment.py`, imported by both surfaces. (With vmware-policy
+1.13.1 the CLI's `--config` file is the one whose labels are judged.)
+
+**OpenClaw could not show this skill to the model.** `metadata.openclaw.requires` listed
+config *file paths* under `requires.config`, which OpenClaw reads as `openclaw.json` keys that
+must be truthy — so the skill was "needs setup / not visible to the model" whatever was on disk
+(verified on OpenClaw 2026.6.35). `requires.env` named an optional override and `requires.bins`
+demanded a CLI that a plugin install (uvx) never has. `requires` is now `anyBins: [<cli>, "uvx"]`;
+the variables are still declared, under `optional.env`.
+
+**Install commands in the skill pin this release.** ClawHub reviews SKILL.md and references/,
+not the package they install, so an unpinned `uv tool install` vouched for code nobody reviewed.
+Every install command for this package in the skill now names this version.
+
+**A config path written as `~/…` now resolves.** Every MCP example config and setup-guide snippet
+sets `VMWARE_NSX_SECURITY_CONFIG` to `~/.vmware-nsx-security/config.yaml`, but MCP clients pass env values verbatim and the
+path was used unexpanded, so copying the snippet gave "Config file not found" for a file that was
+there. `~` is now expanded in the variable and in `--config`.
+
 ## v1.10.0 — `tag remove` now confirms — a behaviour change for scripts
 
 **Breaking for automation.** `tag remove` ran unattended and now asks twice, like

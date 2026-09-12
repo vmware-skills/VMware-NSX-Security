@@ -11,7 +11,7 @@ installer:
   package: vmware-nsx-security
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["VMWARE_NSX_SECURITY_CONFIG"],"bins":["vmware-nsx-security"],"config":["~/.vmware-nsx-security/config.yaml","~/.vmware-nsx-security/.env"]},"optional":{"env":["VMWARE_NSX_SECURITY_<TARGET>_PASSWORD","VMWARE_NSX_SECURITY_<TARGET>_USERNAME","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy"]},"primaryEnv":"VMWARE_NSX_SECURITY_CONFIG","homepage":"https://github.com/vmware-skills/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"anyBins":["vmware-nsx-security","uvx"]},"optional":{"env":["VMWARE_NSX_SECURITY_CONFIG","VMWARE_NSX_SECURITY_<TARGET>_PASSWORD","VMWARE_NSX_SECURITY_<TARGET>_USERNAME","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy"]},"homepage":"https://github.com/vmware-skills/VMware-NSX-Security","emoji":"🔒","os":["macos","linux"]}}
 compatibility: >
   vmware-policy auto-installed as Python dependency (provides @vmware_tool decorator and audit logging). All write operations audited to ~/.vmware/audit.db.
   Credentials: Each NSX Manager target requires a per-target password env var in ~/.vmware-nsx-security/.env following the pattern VMWARE_NSX_SECURITY_<TARGET_NAME_UPPER>_PASSWORD. Passwords are never logged or echoed.
@@ -47,7 +47,7 @@ VMware NSX DFW microsegmentation and security — 22 MCP tools for distributed f
 ## Quick Install
 
 ```bash
-uv tool install vmware-nsx-security
+uv tool install vmware-nsx-security==1.11.0
 vmware-nsx-security init      # guided setup: writes config + .env (chmod 600, password grep-safe), then verifies
 vmware-nsx-security doctor
 ```
@@ -303,7 +303,7 @@ single-command form `vmware-nsx-security mcp` (no PyPI re-resolve), or
 ## Setup
 
 ```bash
-uv tool install vmware-nsx-security
+uv tool install vmware-nsx-security==1.11.0
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
 # Edit config.yaml with your NSX Manager targets
