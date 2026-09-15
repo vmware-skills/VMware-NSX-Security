@@ -14,7 +14,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.table import Table
-from vmware_policy import PolicyDenied, guarded
+from vmware_policy import PolicyDenied, audited, cli_local, guarded
 
 from vmware_nsx_security.notify.audit import AuditLogger
 import sys
@@ -207,6 +207,7 @@ def _confirm_destructive(resource_type: str, resource_id: str, verb: str = "dele
 
 @policy_app.command("list")
 @_cli_errors
+@audited("list_dfw_policies")
 def policy_list(
     target: TargetOption = None,
     config: ConfigOption = None,
@@ -248,6 +249,7 @@ def policy_list(
 
 @policy_app.command("get")
 @_cli_errors
+@audited("get_dfw_policy")
 def policy_get(
     policy_id: str = typer.Argument(..., help="Policy ID"),
     target: TargetOption = None,
@@ -341,6 +343,7 @@ def policy_delete(
 
 @rule_app.command("list")
 @_cli_errors
+@audited("list_dfw_rules")
 def rule_list(
     policy_id: str = typer.Argument(..., help="Parent policy ID"),
     target: TargetOption = None,
@@ -376,6 +379,7 @@ def rule_list(
 
 @rule_app.command("stats")
 @_cli_errors
+@audited("get_dfw_rule_stats")
 def rule_stats(
     policy_id: str = typer.Argument(..., help="Parent policy ID"),
     rule_id: str = typer.Argument(..., help="Rule ID"),
@@ -430,6 +434,7 @@ def rule_delete(
 
 @group_app.command("list")
 @_cli_errors
+@audited("list_groups")
 def group_list(
     target: TargetOption = None,
     config: ConfigOption = None,
@@ -461,6 +466,7 @@ def group_list(
 
 @group_app.command("get")
 @_cli_errors
+@audited("get_group")
 def group_get(
     group_id: str = typer.Argument(..., help="Group ID"),
     target: TargetOption = None,
@@ -513,6 +519,7 @@ def group_delete(
 
 @tag_app.command("list")
 @_cli_errors
+@audited("list_vm_tags")
 def tag_list(
     vm_name: str = typer.Argument(..., help="VM display name"),
     target: TargetOption = None,
@@ -633,6 +640,7 @@ def traceflow_run(
 
 @idps_app.command("profiles")
 @_cli_errors
+@audited("list_idps_profiles")
 def idps_profiles(
     target: TargetOption = None,
     config: ConfigOption = None,
@@ -664,6 +672,7 @@ def idps_profiles(
 
 @idps_app.command("status")
 @_cli_errors
+@audited("get_idps_status")
 def idps_status(
     target: TargetOption = None,
     config: ConfigOption = None,
@@ -683,6 +692,7 @@ def idps_status(
 
 @app.command("init")
 @_cli_errors
+@audited("init")
 def init(
     force: bool = typer.Option(False, "--force", help="Overwrite an existing config"),
     skip_test: bool = typer.Option(False, "--skip-test", help="Skip the post-setup connection test"),
@@ -701,6 +711,7 @@ def init(
 
 @app.command("doctor")
 @_cli_errors
+@audited("doctor")
 def doctor(
     skip_auth: bool = typer.Option(False, "--skip-auth", help="Skip authentication test"),
     config: ConfigOption = None,
@@ -714,6 +725,7 @@ def doctor(
 
 @app.command("mcp")
 @_cli_errors
+@cli_local("starts the MCP server; its tools audit themselves")
 def mcp_cmd() -> None:
     """Start the MCP server (stdio transport).
 
