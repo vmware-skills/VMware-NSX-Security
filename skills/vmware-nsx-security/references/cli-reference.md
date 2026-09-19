@@ -115,8 +115,9 @@ Delete a security group (checks for DFW references first).
 vmware-nsx-security group delete <group-id> [--dry-run] [--target <name>]
 ```
 
-Refuses deletion if the group is referenced by any DFW rule (source,
-destination, or applied-to scope) or by a policy-level scope. If the
+Refuses deletion if the group is a member of another group, or is
+referenced by any DFW or gateway-firewall rule (source, destination, or
+applied-to scope) or by a policy-level scope. If the
 reference scan itself fails, deletion is aborted rather than proceeding
 blind.
 

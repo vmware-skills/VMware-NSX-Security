@@ -32,6 +32,22 @@ _log = logging.getLogger("vmware-nsx-security.security_group")
 
 _GROUPS_BASE = "/policy/api/v1/infra/domains/default/groups"
 
+# NSX's membership API: "policy groups for which the given object is a member"
+# (SDK GroupAssociations.list, required query parameter ``intent_path``). It
+# reports parent groups only — not rules that name the group.
+_GROUP_ASSOCIATIONS = "/policy/api/v1/infra/group-associations"
+
+# Rule collections whose rules can name a group in sources, destinations or
+# applied-to. Walked, because no NSX endpoint answers "who names this group".
+# Each is called with its literal path (not from a loop variable) so the spec
+# conformance scanner can check every path this walk reads.
+_SECURITY_POLICIES = "/policy/api/v1/infra/domains/default/security-policies"
+_GATEWAY_POLICIES = "/policy/api/v1/infra/domains/default/gateway-policies"
+_RULE_GROUP_FIELDS = ("source_groups", "destination_groups", "scope")
+
+#: Walk whole collections: a reference past a capped page would be missed.
+_REFERENCE_WALK_LIMIT = 1_000_000
+
 # How many effective members ``get_group`` returns. A production group can hold
 # thousands; the sample keeps one group's detail from filling agent context.
 _MEMBER_SAMPLE = 50
@@ -266,21 +282,87 @@ def create_group(
     return result
 
 
+def group_references(associations: list[dict]) -> list[str]:
+    """``TargetType:name`` for each entity a group-associations call returned."""
+    return [
+        f"{sanitize(a.get('target_type', 'Unknown'))}:"
+        f"{sanitize(a.get('target_display_name') or a.get('path', 'unknown'))}"
+        for a in associations
+    ]
+
+
+def find_group_references(client: NsxClient, group_id: str) -> list[str]:
+    """Every entity this skill can see that references the group.
+
+    * parent groups, from ``GET /infra/group-associations?intent_path=<group>``;
+    * DFW and gateway-firewall policies whose applied-to names the group, and
+      their rules whose sources, destinations or applied-to name it.
+
+    Other reference classes (load balancer, IDS/IPS, service insertion) are not
+    read here; NSX refuses a delete they block. Any read failure propagates:
+    the caller must not read "could not look" as "no references".
+    """
+    group_path = f"/infra/domains/default/groups/{group_id}"
+    parents = client.get_all(
+        _GROUP_ASSOCIATIONS, params={"intent_path": group_path}, limit=_REFERENCE_WALK_LIMIT
+    )
+    refs = group_references(parents)
+    for policy in client.get_all(_SECURITY_POLICIES, limit=_REFERENCE_WALK_LIMIT):
+        rules = client.get_all(
+            f"{_SECURITY_POLICIES}/{policy.get('id')}/rules", limit=_REFERENCE_WALK_LIMIT
+        )
+        refs += _policy_references("SecurityPolicy", policy, rules, group_path)
+    for policy in client.get_all(_GATEWAY_POLICIES, limit=_REFERENCE_WALK_LIMIT):
+        rules = client.get_all(
+            f"{_GATEWAY_POLICIES}/{policy.get('id')}/rules", limit=_REFERENCE_WALK_LIMIT
+        )
+        refs += _policy_references("GatewayPolicy", policy, rules, group_path)
+    return refs
+
+
+def _policy_references(
+    kind: str, policy: dict, rules: list[dict], group_path: str
+) -> list[str]:
+    """Where one policy names the group: its applied-to, and each rule that does."""
+    name = sanitize(str(policy.get("display_name") or policy.get("id", "unknown")))
+    refs = [f"{kind}:{name} (applied-to)"] if group_path in (policy.get("scope") or []) else []
+    for rule in rules:
+        if any(group_path in (rule.get(f) or []) for f in _RULE_GROUP_FIELDS):
+            rule_name = sanitize(str(rule.get("display_name") or rule.get("id", "unknown")))
+            refs.append(f"{kind}:{name}/{rule_name}")
+    return refs
+
+
+def group_refusal_message(group_id: str, refs: list[str]) -> str:
+    """Teaching text for a group delete refused because something references it."""
+    # The reference list comes from NSX and is unbounded: six references at
+    # ~40 characters each pushed this message to 574, so ``sanitize``'s
+    # 300-char cap deleted the closing "and retry" *and* the whole list the
+    # remedy pointed at ("each SecurityPolicy below"). Bound the list, and
+    # put every interpolation after the remedy so overflow costs context
+    # rather than the instruction.
+    shown = ", ".join(refs[:3])
+    more = f" (+{len(refs) - 3} more)" if len(refs) > 3 else ""
+    return (
+        f"Cannot delete this security group: {len(refs)} entity/entities "
+        "still reference it. Run list_dfw_rules on each referencing "
+        "SecurityPolicy, then use update_dfw_rule to drop the group from "
+        "that rule's sources or destinations (or delete_dfw_rule), and "
+        f"retry. Group: '{group_id}'. Referenced by: {shown}{more}"
+    )
+
+
 def delete_group(client: NsxClient, group_id: str) -> dict[str, str]:
-    """Delete a security group after checking every entity that references it.
+    """Delete a security group after checking what references it.
 
-    Uses NSX's own dependency API,
-    ``GET .../groups/<id>/group-associations``, which reports *all*
-    entities that reference the group regardless of reference class — DFW
-    rules/policies, gateway-firewall policies, nested groups (another
-    group's PathExpression/Condition), service-insertion and IDS/IPS
-    policies, and load-balancer/VPN configs. This is both more complete
-    and far cheaper than hand-walking every policy's rule list: the old
-    DFW-only scan could pass while NSX still 409'd on delete, or could
-    succeed and orphan a nested-group reference.
+    Reads parent groups through NSX's ``/infra/group-associations`` and walks
+    DFW and gateway-firewall rules for the group's path (see
+    :func:`find_group_references`). Before 2026-09-19 this read
+    ``.../groups/<id>/group-associations``, a path NSX does not have, so the
+    check could never succeed on a real NSX.
 
-    Fails safe: if the association check itself errors (API unreachable),
-    deletion is aborted rather than proceeding blind.
+    Fails safe: if any reference read errors, deletion is aborted rather than
+    proceeding blind.
 
     Args:
         client: Authenticated NsxClient instance.
@@ -291,47 +373,21 @@ def delete_group(client: NsxClient, group_id: str) -> dict[str, str]:
 
     Raises:
         ValueError: If the group is referenced by any entity, or if the
-            association check could not be completed.
+            reference check could not be completed.
     """
     _validate_id(group_id, "group_id")
 
-    # Ask NSX which entities reference this group. The group-associations
-    # endpoint returns one entry per referencing entity (target_type names
-    # the reference class: SecurityPolicy, GatewayPolicy, Group, etc.), so
-    # nested-group and gateway-firewall references are covered without a
-    # per-policy rule walk.
     try:
-        associations = client.get_all(
-            f"{_GROUPS_BASE}/{group_id}/group-associations"
-        )
+        refs = find_group_references(client, group_id)
     except Exception as exc:
         raise ValueError(
-            f"Cannot delete group '{group_id}': the group-associations check "
+            f"Cannot delete group '{group_id}': the reference check "
             "failed, so it may still be in use. Verify NSX connectivity (run "
             f"'vmware-nsx-security doctor') and retry. Detail: {exc}"
         ) from exc
 
-    if associations:
-        refs = [
-            f"{sanitize(a.get('target_type', 'Unknown'))}:"
-            f"{sanitize(a.get('target_display_name') or a.get('path', 'unknown'))}"
-            for a in associations
-        ]
-        # The reference list comes from NSX and is unbounded: six references at
-        # ~40 characters each pushed this message to 574, so ``sanitize``'s
-        # 300-char cap deleted the closing "and retry" *and* the whole list the
-        # remedy pointed at ("each SecurityPolicy below"). Bound the list, and
-        # put every interpolation after the remedy so overflow costs context
-        # rather than the instruction.
-        shown = ", ".join(refs[:3])
-        more = f" (+{len(refs) - 3} more)" if len(refs) > 3 else ""
-        raise ValueError(
-            f"Cannot delete this security group: {len(refs)} entity/entities "
-            "still reference it. Run list_dfw_rules on each referencing "
-            "SecurityPolicy, then use update_dfw_rule to drop the group from "
-            "that rule's sources or destinations (or delete_dfw_rule), and "
-            f"retry. Group: '{group_id}'. Referenced by: {shown}{more}"
-        )
+    if refs:
+        raise ValueError(group_refusal_message(group_id, refs))
 
     client.delete(f"{_GROUPS_BASE}/{group_id}")
     _log.info("Deleted security group: %s", group_id)

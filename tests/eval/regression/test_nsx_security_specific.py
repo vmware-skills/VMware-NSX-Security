@@ -467,47 +467,52 @@ def test_create_dfw_policy_accepts_ethernet_category() -> None:
     assert client.put.call_args.args[1]["category"] == "Ethernet"
 
 
-# ── M3 / issue #6: delete_group uses the group-associations dependency API,
-#    covering every reference class (DFW, gateway firewall, NESTED GROUPS,
-#    service-insertion) and failing safe when the check errors. ────────────
+# ── M3 / issue #6, corrected 2026-09-19: delete_group checks parent groups
+#    through NSX's real ``/infra/group-associations?intent_path=`` (the old
+#    per-group ``.../groups/{id}/group-associations`` path is not in NSX's
+#    API and 404'd), and DFW / gateway-firewall rule references by walking
+#    the rules. Any unreadable part aborts the delete. ─────────────────────
+
+_G1 = "/infra/domains/default/groups/g1"
+_ASSOC = "/policy/api/v1/infra/group-associations"
+_SP = "/policy/api/v1/infra/domains/default/security-policies"
+_GW = "/policy/api/v1/infra/domains/default/gateway-policies"
 
 
-def _associations_client(associations: list[dict]) -> MagicMock:
-    """Mock whose group-associations endpoint returns ``associations``."""
+def _refs_client(parents=(), collections=None) -> MagicMock:
+    """Mock answering group-associations (by intent_path) and rule collections."""
     client = _mock_client()
+    data = dict(collections or {})
 
-    def _get_all(path, params=None):
-        if path.endswith("/group-associations"):
-            return associations
-        return []
+    def _get_all(path, params=None, **_kw):
+        if path == _ASSOC:
+            assert params == {"intent_path": _G1}, params
+            return [{"target_type": "Group", "target_display_name": p} for p in parents]
+        assert params is None, (path, params)
+        return data.get(path, [])
 
     client.get_all.side_effect = _get_all
     return client
 
 
-def test_delete_group_blocks_on_dfw_policy_reference() -> None:
+def test_delete_group_blocks_on_dfw_rule_reference() -> None:
     from vmware_nsx_security.ops.security_group import delete_group
 
-    client = _associations_client(
-        [{"target_type": "SecurityPolicy", "target_display_name": "pol1", "path": "/infra/.../pol1"}]
-    )
-    with pytest.raises(ValueError):
+    client = _refs_client(collections={
+        _SP: [{"id": "pol1", "display_name": "pol1"}],
+        f"{_SP}/pol1/rules": [{"id": "r", "display_name": "r1", "destination_groups": [_G1]}],
+    })
+    with pytest.raises(ValueError) as exc:
         delete_group(client, "g1")
+    assert "SecurityPolicy:pol1/r1" in str(exc.value)
     client.delete.assert_not_called()
 
 
 def test_delete_group_blocks_on_nested_group_reference() -> None:
-    """A group referenced only by ANOTHER GROUP (not a DFW rule) must be
-    detected. The old DFW-only rule walk missed this and would orphan the
-    nested-group reference. Maps to issue #6.
-    """
+    """A group that is a member of ANOTHER GROUP (no rule references it) is detected."""
     from vmware_nsx_security.ops.security_group import delete_group
 
-    # Sole reference is a nested group (target_type=Group), with no DFW
-    # rule referencing it at all.
-    client = _associations_client(
-        [{"target_type": "Group", "target_display_name": "parent-group", "path": "/infra/domains/default/groups/parent-group"}]
-    )
+    client = _refs_client(parents=("parent-group",))
     with pytest.raises(ValueError) as exc:
         delete_group(client, "g1")
     assert "parent-group" in str(exc.value)
@@ -517,18 +522,23 @@ def test_delete_group_blocks_on_nested_group_reference() -> None:
 def test_delete_group_blocks_on_gateway_firewall_reference() -> None:
     from vmware_nsx_security.ops.security_group import delete_group
 
-    client = _associations_client(
-        [{"target_type": "GatewayPolicy", "target_display_name": "gw-pol", "path": "/infra/domains/default/gateway-policies/gw-pol"}]
-    )
-    with pytest.raises(ValueError):
+    client = _refs_client(collections={
+        _GW: [{"id": "gw-pol", "display_name": "gw-pol"}],
+        f"{_GW}/gw-pol/rules": [{"id": "r", "display_name": "edge", "source_groups": [_G1]}],
+    })
+    with pytest.raises(ValueError) as exc:
         delete_group(client, "g1")
+    assert "GatewayPolicy:gw-pol/edge" in str(exc.value)
     client.delete.assert_not_called()
 
 
 def test_delete_group_succeeds_when_unreferenced() -> None:
     from vmware_nsx_security.ops.security_group import delete_group
 
-    client = _associations_client([])
+    client = _refs_client(collections={
+        _SP: [{"id": "pol1", "display_name": "pol1"}],
+        f"{_SP}/pol1/rules": [{"id": "r", "source_groups": ["ANY"], "destination_groups": ["ANY"]}],
+    })
     result = delete_group(client, "g1")
     assert result["status"] == "deleted"
     client.delete.assert_called_once_with(

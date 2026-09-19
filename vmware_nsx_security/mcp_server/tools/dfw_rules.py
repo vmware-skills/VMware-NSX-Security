@@ -217,28 +217,46 @@ def update_dfw_rule(
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="high")
-def delete_dfw_rule(policy_id: str, rule_id: str, target: Optional[str] = None) -> dict:
+def delete_dfw_rule(
+    policy_id: str, rule_id: str, confirm: bool = False, target: Optional[str] = None
+) -> dict:
     """[WRITE] Permanently delete one DFW rule from its parent security policy.
 
-    Returns {"status": "deleted", "message": ...}, else {"error", "hint"}.
     Irreversible and immediate: traffic it matched falls through to
-    lower-priority rules or the policy default. Confirm rule_id
-    with list_dfw_rules and check recent hits with get_dfw_rule_stats
-    first; prefer update_dfw_rule with disabled=True when you may need the
-    rule back. To remove a whole policy use delete_dfw_policy — it refuses
-    while rules remain, whereas this tool has no such guard.
+    lower-priority rules or the policy default. Without confirm=True this only
+    previews: it returns blast_radius (the parent policy, the rule's action,
+    sources, destinations, services, scope, direction, disabled flag,
+    blockers, unmeasured) and deletes nothing. Show that to the user and get
+    their decision. Do not set confirm=True on your own because the user asked
+    to delete earlier: they have not seen the blast radius yet. Check recent
+    hits with get_dfw_rule_stats first; prefer update_dfw_rule with
+    disabled=True when you may need the rule back. A rule_id not in the policy
+    is an error, and confirm=True refuses when the rules could not be read. To
+    remove a whole policy use delete_dfw_policy — it refuses while rules
+    remain. Returns {"action": "preview" | "deleted", "blast_radius": ...},
+    else {"error", "hint", "blast_radius"?}.
 
     Args:
         policy_id: Parent policy id, from list_dfw_policies.
         rule_id: Rule id within that policy, from list_dfw_rules.
+        confirm: False (default) returns the blast radius and changes nothing. True applies it.
         target: Target name from config; default if omitted.
     """
     try:
+        from vmware_nsx_security.ops.delete_gate import (
+            dfw_rule_delete_blast_radius,
+            preview,
+            refuse_unless_clear,
+        )
         from vmware_nsx_security.ops.dfw_rules import delete_dfw_rule as _fn
 
         client = _get_connection(target)
+        radius = dfw_rule_delete_blast_radius(client, policy_id, rule_id)
+        if confirm is not True:
+            return preview(radius)
+        refuse_unless_clear("delete_dfw_rule", radius)
         result = _fn(client, policy_id, rule_id)
-        return result
+        return {"action": "deleted", **result, "blast_radius": radius}
     except Exception as e:
         return _write_error(
             e, operation="delete_dfw_rule", resource=f"{policy_id}/{rule_id}",

@@ -1,3 +1,71 @@
+## v1.12.0 — MCP deletes preview by default and state their blast radius
+
+**Fix: the group reference check could never run on a real NSX.** Since it was added,
+`delete_group` (CLI and MCP) asked `GET .../domains/default/groups/{id}/group-associations` which
+entities reference the group. That path is not in NSX's API (it is absent from the NSX 4.2 SDK
+url_template index), so on a real NSX Manager the read failed and every delete was refused as
+"the check failed" — the documented reference check never ran. Tests missed it because the mock
+answered any path ending in `/group-associations`.
+
+NSX's real endpoint, `GET /policy/api/v1/infra/group-associations?intent_path=<group path>`,
+answers a different question — the groups the given object is a *member of* (SDK:
+"policy groups for which the given object is a member") — so it covers nested groups only. The
+check is now: parent groups from that endpoint, plus a walk of every DFW `security-policies` and
+`gateway-policies` policy and its rules for the group's path in sources, destinations and
+applied-to, and in policy-level applied-to. Load-balancer, IDS/IPS and service-insertion
+references are not read by the skill; NSX refuses a delete they block. Every read is
+fail-closed: if any fails, the preview lists `references` under `unmeasured` and `confirm=True`
+(and the CLI) refuse. A group delete now makes one GET per DFW and gateway policy. A new
+regression test checks every API path this skill calls against the vendored SDK index
+(`tests/eval/spec/nsx_api_operations.json`, copied from VMware-NSX); it fails on the old path.
+It also fails on any client call whose path it cannot resolve, rather than skipping it: the group
+reference walk used to build its policy and rule paths from a loop variable, so those two reads were
+never checked. The walk now reads security policies and gateway policies with literal paths.
+
+**Breaking for MCP callers.** `delete_dfw_policy`, `delete_dfw_rule` and `delete_group` take a new
+`confirm: bool = False`. A call without `confirm=True` no longer deletes: it returns
+`{"action": "preview", "blast_radius": {...}, "hint"}` and makes no DELETE. An agent or Pilot step
+that deleted with a bare call must now pass `confirm=True` — after the user has seen the preview.
+Only the literal `True` acts. The acting response is the ops result plus `"action": "deleted"` and
+`blast_radius` (`status` and `message` are still there); the tools already returned dicts.
+
+**What `blast_radius` holds** (identifiers capped at 16, plus `blockers` and `unmeasured`):
+a policy's name, path, category, sequence number, stateful flag, `rule_count` (the whole rule set
+is walked, so the count is exact) and `rule_ids`; a rule's parent policy name and category, and
+the rule's action, sources, destinations, services, scope, direction, disabled flag and sequence
+number; a group's name, path, `expression_count`, `reference_count` and `references`
+(`Group:name` for a parent group, `SecurityPolicy:policy/rule` or `GatewayPolicy:policy/rule` for a
+rule, `...:policy (applied-to)` for a policy scope).
+
+**`confirm=True` is refused, deleting nothing, when:**
+- a blocker is present — the existing refusals, with their existing text: rules left in the
+  policy; entities referencing the group;
+- any read the blast radius depends on failed (`unmeasured` lists it) — the policy or group GET
+  (other than 404), the policy's rules, any read of the group reference check. A failed rules or reference
+  read already stopped the delete as an error; it is now also named in the preview's
+  `unmeasured`, and a failed rules read stops a *rule* delete, which had no read at all.
+
+A missing object is an error on both paths: a rule not in its policy names `list_dfw_rules`; a
+policy or group that answers 404 carries the connection layer's 404 teaching text. Before, a
+missing rule's delete was sent to NSX.
+
+**Reads added before a delete:** the policy GET (`get_dfw_policy`) and its rules collection
+(`list_dfw_rules`, now walked in full for the count); the group GET (`get_group`). A rule is found by walking
+its policy's rules, not by a per-rule GET. `delete_group`'s reference check additionally reads two endpoints
+this skill did not use before — `/infra/group-associations` and the gateway-firewall policies and their
+rules — so the service account needs read access to them.
+An account that deletes these objects now also needs read access to them.
+
+**Audit.** A refusal is the `{"error", "hint", "blast_radius"}` envelope, audited as a failure in
+both `~/.vmware/audit.db` and `~/.vmware-nsx-security/audit.log`. A preview is filed in the skill
+log as `preview`, not `ok`. Gate refusals pass the error sanitizer with a 2000-character cap
+rather than 300 (kept identical to VMware-NSX), so a long reference list is not cut.
+
+**Unchanged:** the CLI. `vmware-nsx-security policy delete`, `rule delete` and `group delete`
+still ask twice, still support `--dry-run`, and call the same ops functions as before.
+* Requires `vmware-policy>=1.17.0`, which audits a `confirm=False` preview as `dry_run` and redacts long
+  audit text in linear time.
+
 ## v1.11.1 — CLI reads are audited
 
 No CLI read wrote `~/.vmware/audit.db` — only MCP calls and CLI writes (`@guarded`) did. A live

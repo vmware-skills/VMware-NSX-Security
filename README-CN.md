@@ -153,10 +153,11 @@ vmware-nsx-security traceflow run <src-lport-id> \
 
 ## 安全性
 
-- **依赖检查**：有活跃规则时不允许删除策略；被 DFW 规则/作用域引用的安全组不允许删除；引用扫描失败时中止删除
+- **依赖检查**：有活跃规则时不允许删除策略；被 DFW 或网关防火墙规则/作用域引用、或属于某个父组的安全组不允许删除；引用扫描失败时中止删除
 - **审计日志**：所有写操作记录到 `~/.vmware-nsx-security/audit.log`（JSON Lines 格式）
 - **输入验证**：ID 字符集校验；API 返回文本经过 `_sanitize()` 清洗，防止提示注入
 - **Dry-run 模式**：CLI 写命令均支持 `--dry-run` 预览
+- **MCP 删除预览**：`delete_dfw_policy`、`delete_dfw_rule`、`delete_group` 默认只预览 —— 不传 `confirm=True` 时返回 `blast_radius`（将删除什么、`blockers`、`unmeasured`），不删除任何东西；仍有阻塞项或有读取失败时，`confirm=True` 会被拒绝
 - **凭据安全**：密码仅从环境变量读取，永不写入 config.yaml
 
 ### 配套 Skill

@@ -1,6 +1,6 @@
 {
   "name": "@zw008/vmware-nsx-security",
-  "version": "1.11.1",
+  "version": "1.12.0",
   "description": "VMware NSX security: DFW policies and exclusions, groups, tags, Traceflow, IDPS — 22 MCP tools.",
   "private": true,
   "license": "MIT",

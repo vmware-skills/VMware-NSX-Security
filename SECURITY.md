@@ -32,6 +32,7 @@ All write operations pass through multiple safety layers:
 2. **Double confirmation** — CLI destructive commands (DFW policy delete, security group delete, IDS/IPS config changes) require two separate "Are you sure?" prompts
 3. **DFW policy deletion guard** — policy delete checks for active rules before proceeding; policies with active rules require explicit override
 4. **Security group deletion guard** — group delete checks for references (policies, rules, other groups that depend on it) and rejects deletion if references exist
+4a. **MCP delete preview** — the three MCP delete tools (`delete_dfw_policy`, `delete_dfw_rule`, `delete_group`) take `confirm: bool = False`. A call without `confirm=True` returns the blast radius and deletes nothing; `confirm=True` re-measures and is refused, deleting nothing, while a blocker remains or any read the blast radius depends on failed
 5. **Traceflow safety** — Traceflow operations are strictly read-only and cannot modify network state
 6. **IDS/IPS confirmation** — IDS/IPS configuration changes (enable, disable, profile updates) require double confirmation due to security impact
 7. **Audit logging** — every operation (read and write) is logged to `~/.vmware/audit.db` (SQLite WAL) with timestamp, user, target, operation, parameters, and result

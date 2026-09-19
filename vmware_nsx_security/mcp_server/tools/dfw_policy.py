@@ -177,23 +177,40 @@ def update_dfw_policy(
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="high")
-def delete_dfw_policy(policy_id: str, target: Optional[str] = None) -> dict:
-    """[WRITE] Delete a DFW security policy.
+def delete_dfw_policy(policy_id: str, confirm: bool = False, target: Optional[str] = None) -> dict:
+    """[WRITE] Delete a DFW security policy; refuses while it still holds rules.
 
-    Returns {"status": "deleted", "message": ...}, else {"error", "hint"}.
-    Refuses if the policy still holds active rules: list them with
-    list_dfw_rules and clear each with delete_dfw_rule first.
+    Without confirm=True this only previews: it returns blast_radius (the
+    policy's name, category, sequence_number, rule_count and rule_ids,
+    blockers, unmeasured) and deletes nothing. Show that to the user and get
+    their decision. Do not set confirm=True on your own because the user asked
+    to delete earlier: they have not seen the blast radius yet.
+
+    confirm=True refuses, deleting nothing, while the policy still holds
+    rules — list them with list_dfw_rules and clear each with delete_dfw_rule
+    first — or when its rules could not be read. Returns {"action": "preview" |
+    "deleted", "blast_radius": ...}, else {"error", "hint", "blast_radius"?}.
 
     Args:
         policy_id: ID of the policy to delete.
+        confirm: False (default) returns the blast radius and changes nothing. True applies it.
         target: Optional NSX Manager target from config.
     """
     try:
+        from vmware_nsx_security.ops.delete_gate import (
+            dfw_policy_delete_blast_radius,
+            preview,
+            refuse_unless_clear,
+        )
         from vmware_nsx_security.ops.dfw_policy import delete_dfw_policy as _fn
 
         client = _get_connection(target)
+        radius = dfw_policy_delete_blast_radius(client, policy_id)
+        if confirm is not True:
+            return preview(radius)
+        refuse_unless_clear("delete_dfw_policy", radius)
         result = _fn(client, policy_id)
-        return result
+        return {"action": "deleted", **result, "blast_radius": radius}
     except Exception as e:
         return _write_error(
             e, operation="delete_dfw_policy", resource=policy_id,

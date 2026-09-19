@@ -155,10 +155,11 @@ entries carry `reason` + `acl_rule_id`), and a `dfw_hits` summary.
 
 ## Safety
 
-- **Dependency checks**: Cannot delete a policy with active rules, or a group referenced by DFW rules/scopes; group deletion aborts if the reference scan fails
+- **Dependency checks**: Cannot delete a policy with active rules, or a group referenced by DFW or gateway-firewall rules/scopes or by a parent group; group deletion aborts if the reference scan fails
 - **Audit logging**: All write ops logged to `~/.vmware-nsx-security/audit.log`
 - **Input validation**: IDs validated; all API text sanitized against prompt injection
 - **Dry-run mode**: All CLI write commands support `--dry-run`
+- **MCP delete preview**: `delete_dfw_policy`, `delete_dfw_rule` and `delete_group` preview by default — without `confirm=True` they return `blast_radius` (what would be removed, `blockers`, `unmeasured`) and delete nothing; `confirm=True` is refused while a blocker remains or a read failed
 - **Credential safety**: Passwords only from env vars, never in config files
 
 ### Companion Skills

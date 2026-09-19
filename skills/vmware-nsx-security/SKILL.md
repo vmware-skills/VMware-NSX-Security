@@ -15,7 +15,7 @@ metadata: {"openclaw":{"requires":{"anyBins":["vmware-nsx-security","uvx"]},"opt
 compatibility: >
   vmware-policy auto-installed as Python dependency (provides @vmware_tool decorator and audit logging). All write operations audited to ~/.vmware/audit.db.
   Credentials: Each NSX Manager target requires a per-target password env var in ~/.vmware-nsx-security/.env following the pattern VMWARE_NSX_SECURITY_<TARGET_NAME_UPPER>_PASSWORD. Passwords are never logged or echoed.
-  Destructive operations: DFW policy delete checks for active rules, security group delete checks for references. IDS/IPS config changes require double confirmation. Traceflow is read-only.
+  Destructive operations: DFW policy delete checks for active rules, security group delete checks for references. The three MCP delete tools preview by default — without confirm=True they return the blast radius and change nothing, and confirm=True is refused while a blocker remains or a read failed. IDS/IPS config changes require double confirmation. Traceflow is read-only.
   No webhooks, no outbound network calls, no guest operations. Local only: stdio MCP + NSX Policy API (HTTPS 443).
   Transitive dependencies: Only vmware-policy (audit/policy). No post-install scripts or background services.
 ---
@@ -47,7 +47,7 @@ VMware NSX DFW microsegmentation and security — 22 MCP tools for distributed f
 ## Quick Install
 
 ```bash
-uv tool install vmware-nsx-security==1.11.1
+uv tool install vmware-nsx-security==1.12.0
 vmware-nsx-security init      # guided setup: writes config + .env (chmod 600, password grep-safe), then verifies
 vmware-nsx-security doctor
 ```
@@ -192,16 +192,16 @@ Errors return
 | | `get_dfw_policy` | Read | Get policy details: category, stateful, locked, scope, tags |
 | | `create_dfw_policy` | Write | Create a new DFW policy with category and sequence number |
 | | `update_dfw_policy` | Write | Partial update: display_name, description, sequence_number, stateful |
-| | `delete_dfw_policy` | Write | Delete policy — refuses if active rules exist |
+| | `delete_dfw_policy` | Write | Delete policy — previews unless `confirm=True`; refuses if active rules exist |
 | | `list_dfw_rules` | Read | List rules in a policy: action, sources, destinations, services |
 | DFW Rules | `create_dfw_rule` | Write | Create rule with sources/destinations/services/action/scope |
 | | `update_dfw_rule` | Write | Partial update rule fields |
-| | `delete_dfw_rule` | Write | Delete a rule from a policy |
+| | `delete_dfw_rule` | Write | Delete a rule from a policy — previews unless `confirm=True` |
 | | `get_dfw_rule_stats` | Read | Get packet/byte/session/hit counts and popularity_index for a rule |
 | Security Groups | `list_groups` | Read | List all security groups with expression count |
 | | `get_group` | Read | Get group details: expression criteria + up to 50 effective VM members |
 | | `create_group` | Write | Create group with tag/IP/segment membership criteria (tag matched as "scope\|tag"; multiple criteria ORed) |
-| | `delete_group` | Write | Delete group — refuses if referenced by DFW rules/scopes, or if the reference scan fails |
+| | `delete_group` | Write | Delete group — previews unless `confirm=True`; refuses if referenced by rules/scopes or a parent group, or if the scan fails |
 | VM Tags | `list_vm_tags` | Read | List NSX tags on a VM by display name |
 | | `apply_vm_tag` | Write | Apply a scope/value tag to a VM (additive, preserves existing tags) |
 | | `remove_vm_tag` | Write | Remove a scope/value tag from a VM (other tags preserved; may change dynamic group membership) |
@@ -209,6 +209,8 @@ Errors return
 | | `get_traceflow_result` | Read | Check operation_state/observations of an existing traceflow |
 | IDPS | `list_idps_profiles` | Read | List IDPS profiles with severity and filter criteria |
 | | `get_idps_status` | Read | Get IDPS signature status + global IDS settings (auto_update, syslog export) |
+
+The three `delete_*` tools preview by default: without `confirm=True` they return `blast_radius` — the object, what it holds or matches (a policy's `rule_count`, a rule's action, sources, destinations and services, a group's `references`), `blockers` and `unmeasured` — and delete nothing. Show it to the user and pass `confirm=True` only after they decide; it is refused while a blocker remains or a read failed.
 
 ## CLI Quick Reference
 
@@ -253,7 +255,7 @@ vmware-nsx-security doctor [--skip-auth]
 
 ### "Cannot delete group — referenced by DFW rules"
 
-`delete_group` scans all policies for references to the group in rule source_groups, destination_groups, and applied-to scope, plus policy-level scope. Remove the group from those references first (via `update_dfw_rule` replacing the group path with 'ANY' or another group), then retry. If the error says the reference scan itself failed, deletion was aborted as a precaution — verify NSX connectivity with `vmware-nsx-security doctor` and retry.
+`delete_group` scans DFW and gateway policies for the group in rule source_groups, destination_groups and applied-to scope, plus policy-level scope, and checks parent groups. Remove the group from those references first (via `update_dfw_rule` replacing the group path with 'ANY' or another group), then retry. If the error says the reference scan itself failed, deletion was aborted as a precaution — verify NSX connectivity with `vmware-nsx-security doctor` and retry.
 
 ### "No virtual machine named ... exists in the NSX fabric inventory"
 
@@ -293,6 +295,7 @@ single-command form `vmware-nsx-security mcp` (no PyPI re-resolve), or
 
 - **Audit logging**: All write operations logged to `~/.vmware/audit.db` (SQLite WAL, via vmware-policy) with timestamp, user, target, operation, parameters, and result
 - **Dependency checks**: `delete_dfw_policy` checks for active rules; `delete_group` checks for DFW rule references — prevents accidental cascade failures
+- **MCP delete preview**: the three MCP delete tools act only with `confirm=True`; a bare call returns the blast radius and deletes nothing
 - **Input validation**: All IDs validated against safe character set (alphanumerics, hyphens, underscores, dots); all text fields sanitized to strip control characters
 - **Dry-run mode**: CLI write commands support `--dry-run` to preview API calls without executing
 - **Double confirmation**: CLI destructive operations (delete) require two separate confirmation prompts
@@ -303,7 +306,7 @@ single-command form `vmware-nsx-security mcp` (no PyPI re-resolve), or
 ## Setup
 
 ```bash
-uv tool install vmware-nsx-security==1.11.1
+uv tool install vmware-nsx-security==1.12.0
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
 # Edit config.yaml with your NSX Manager targets

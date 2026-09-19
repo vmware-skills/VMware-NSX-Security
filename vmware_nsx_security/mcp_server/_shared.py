@@ -18,11 +18,15 @@ from vmware_policy import sanitize
 
 from vmware_nsx_security.config import ConfigError, load_config
 from vmware_nsx_security.connection import ConnectionManager, NsxApiError
+from vmware_nsx_security.ops.delete_gate import DeleteRefusedError
 from vmware_nsx_security import __version__
 
 logger = logging.getLogger(__name__)
 
 _DOCTOR_HINT = "Run 'vmware-nsx-security doctor' to verify connectivity."
+
+#: Longest gate refusal passed to the caller (see ``_safe_error``).
+_REFUSAL_MAX = 2000
 
 
 def _safe_error(exc: Exception, tool: str) -> str:
@@ -83,6 +87,12 @@ def _safe_error(exc: Exception, tool: str) -> str:
     logger.error("Tool %s failed", tool, exc_info=True)
     if isinstance(exc, ssl.SSLError):
         return f"{type(exc).__name__}: operation failed."
+    if isinstance(exc, DeleteRefusedError):
+        # A gate refusal is authored text built from sanitized ids, and it
+        # names the blocker plus the next step; the usual cap would cut a long
+        # reference list mid-way. It still passes through ``sanitize``. Kept
+        # identical to VMware-NSX's rule (踩坑 #21).
+        return sanitize(str(exc), _REFUSAL_MAX)
     _passthrough = (
         ValueError,
         FileNotFoundError,
@@ -119,7 +129,12 @@ def _write_error(
     callers pass them, they cost nothing, and removing them from eleven call
     sites is a rename with no reader.
     """
-    return {"error": _safe_error(exc, "nsx-security"), "hint": _DOCTOR_HINT}
+    out: dict = {"error": _safe_error(exc, "nsx-security"), "hint": _DOCTOR_HINT}
+    # A gated delete's refusal carries what it measured (HLD §7 L1).
+    radius = getattr(exc, "blast_radius", None)
+    if isinstance(radius, dict):
+        out["blast_radius"] = radius
+    return out
 
 
 mcp = FastMCP(

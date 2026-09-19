@@ -103,6 +103,21 @@ def _failed(result: Any) -> bool:
     return False
 
 
+def _outcome(result: Any) -> str:
+    """``error``, ``preview`` or ``ok`` for one returned value.
+
+    A gated delete called without ``confirm=True`` returns ``{"action":
+    "preview"}`` and changes nothing. Filed as ``ok`` it reads as a deletion
+    in a log whose rows are meant to be true, so it is filed as what it was —
+    the same rule as VMware-NSX's sweep.
+    """
+    if _failed(result):
+        return "error"
+    if isinstance(result, dict) and result.get("action") == "preview":
+        return "preview"
+    return "ok"
+
+
 def _record(tool: str, signature: inspect.Signature, params: dict[str, Any], result: str) -> None:
     """Append one line, or warn. Audit failure must never fail the operation."""
     recorded = {
@@ -140,7 +155,7 @@ def _audited(fn: Callable) -> Callable:
         except Exception:
             _record(fn.__name__, signature, params, "error")
             raise
-        _record(fn.__name__, signature, params, "error" if _failed(result) else "ok")
+        _record(fn.__name__, signature, params, _outcome(result))
         return result
 
     return wrapper

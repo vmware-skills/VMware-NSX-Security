@@ -273,6 +273,15 @@ def update_dfw_policy(
     return result
 
 
+def policy_refusal_message(policy_id: str) -> str:
+    """Teaching text for a policy delete refused because rules remain."""
+    return (
+        f"Cannot delete policy '{policy_id}': it still contains firewall "
+        "rule(s). Delete the rules first — run list_dfw_rules to review "
+        "them, then remove each before deleting the policy."
+    )
+
+
 def delete_dfw_policy(client: NsxClient, policy_id: str) -> dict[str, str]:
     """Delete a DFW security policy after checking for active rules.
 
@@ -294,11 +303,7 @@ def delete_dfw_policy(client: NsxClient, policy_id: str) -> dict[str, str]:
     # rule of a (potentially thousands-strong) Application policy.
     # ``items`` — not the envelope itself, which is always truthy.
     if list_dfw_rules(client, policy_id, limit=1)["items"]:
-        raise ValueError(
-            f"Cannot delete policy '{policy_id}': it still contains firewall "
-            "rule(s). Delete the rules first — run list_dfw_rules to review "
-            "them, then remove each before deleting the policy."
-        )
+        raise ValueError(policy_refusal_message(policy_id))
 
     client.delete(f"{_DFW_BASE}/{policy_id}")
     _log.info("Deleted DFW policy: %s", policy_id)

@@ -38,6 +38,9 @@ import pytest
 from vmware_nsx_security.connection import NsxApiError
 from vmware_nsx_security.mcp_server import server as srv
 
+#: A blast radius with nothing in the way, for tests about the audit, not the gate.
+_CLEAR = {"blockers": [], "unmeasured": []}
+
 #: Value handed to every required parameter. It must satisfy the ops layer's
 #: ``_validate_id`` (alphanumerics, hyphens, underscores) or every tool would
 #: take its validation-error path and the success branch would go untested.
@@ -122,7 +125,8 @@ def test_every_mcp_write_tool_records_to_the_skill_audit_log(name, audit_log):
     assert row["resource"] == PROBE, f"{name} audited resource={row['resource']!r}, expected the id it acted on"
     assert row["target"] == "default", f"{name} audited target={row['target']!r} for an omitted target"
     assert row["skill"] == "nsx-security"
-    assert row["result"] in {"ok", "error"}, f"{name} audited an unexpected result {row['result']!r}"
+    # "preview": a gated delete called without confirm=True changes nothing.
+    assert row["result"] in {"ok", "error", "preview"}, f"{name} audited an unexpected result {row['result']!r}"
 
 
 def test_the_registered_tool_and_the_module_attribute_are_one_object():
@@ -170,9 +174,11 @@ def test_the_declared_target_is_audited(audit_log):
     from vmware_nsx_security.mcp_server.tools import dfw_policy as tool
 
     with patch.object(tool, "_get_connection", return_value=MagicMock()), patch(
+        "vmware_nsx_security.ops.delete_gate.dfw_policy_delete_blast_radius", return_value=dict(_CLEAR)
+    ), patch(
         "vmware_nsx_security.ops.dfw_policy.delete_dfw_policy", return_value={"status": "deleted"}
     ):
-        srv.delete_dfw_policy("pol-1", target="nsx-dc2")
+        srv.delete_dfw_policy("pol-1", confirm=True, target="nsx-dc2")
     assert [r["target"] for r in audit_log()] == ["nsx-dc2"]
 
 
@@ -234,10 +240,25 @@ def test_a_broken_audit_sink_does_not_break_the_write(monkeypatch):
     monkeypatch.setattr(_write_audit, "_audit", exploding)
 
     with patch.object(tool, "_get_connection", return_value=MagicMock()), patch(
+        "vmware_nsx_security.ops.delete_gate.dfw_policy_delete_blast_radius", return_value=dict(_CLEAR)
+    ), patch(
         "vmware_nsx_security.ops.dfw_policy.delete_dfw_policy", return_value={"status": "deleted"}
     ):
-        assert srv.delete_dfw_policy("pol-1") == {"status": "deleted"}
+        assert srv.delete_dfw_policy("pol-1", confirm=True)["status"] == "deleted"
     assert exploding.log.called
+
+
+def test_a_delete_preview_is_recorded_as_preview_not_ok(audit_log):
+    """A bare call deletes nothing; ``ok`` would read as a deletion."""
+    from vmware_nsx_security.mcp_server.tools import dfw_policy as tool
+
+    with patch.object(tool, "_get_connection", return_value=MagicMock()), patch(
+        "vmware_nsx_security.ops.delete_gate.dfw_policy_delete_blast_radius", return_value=dict(_CLEAR)
+    ), patch("vmware_nsx_security.ops.dfw_policy.delete_dfw_policy") as ops:
+        out = srv.delete_dfw_policy("pol-1")
+    ops.assert_not_called()
+    assert out["action"] == "preview"
+    assert [r["result"] for r in audit_log()] == ["preview"]
 
 
 def test_no_write_tool_still_audits_from_its_own_body():

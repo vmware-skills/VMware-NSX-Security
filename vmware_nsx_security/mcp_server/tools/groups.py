@@ -135,27 +135,44 @@ def create_group(
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @vmware_tool(risk_level="high")
-def delete_group(group_id: str, target: Optional[str] = None) -> dict:
-    """[WRITE] Delete an NSX security group.
+def delete_group(group_id: str, confirm: bool = False, target: Optional[str] = None) -> dict:
+    """[WRITE] Delete an NSX security group; refuses while anything references it.
 
-    Returns {"status": "deleted", "message": ...}, else {"error", "hint"}.
-    Use it once get_group shows the group is unwanted. Refuses if anything
-    still references it (NSX's group-associations API covers DFW rules and
-    policies, gateway firewall, nested groups, service insertion), and
-    refuses if that check itself fails (fail-safe). When the refusal names
-    a DFW rule, retarget it with update_dfw_rule or drop it with
-    delete_dfw_rule first.
+    Use it once get_group shows the group is unwanted. Without confirm=True
+    this only previews: it returns blast_radius (the group's name, path,
+    expression_count, reference_count and references, blockers, unmeasured)
+    and deletes nothing. Show that to the user and get their decision. Do not
+    set confirm=True on your own because the user asked to delete earlier:
+    they have not seen the blast radius yet.
+
+    confirm=True refuses if anything still references the group (parent
+    groups from NSX's group-associations API; DFW and gateway-firewall rules
+    and policy applied-to, by walking the rules), and refuses if that check
+    itself fails (fail-safe). When the refusal names a DFW rule, retarget it with
+    update_dfw_rule or drop it with delete_dfw_rule first. Returns {"action":
+    "preview" | "deleted", "blast_radius": ...}, else {"error", "hint",
+    "blast_radius"?}.
 
     Args:
         group_id: ID of the group to delete.
+        confirm: False (default) returns the blast radius and changes nothing. True applies it.
         target: Optional NSX Manager target from config.
     """
     try:
+        from vmware_nsx_security.ops.delete_gate import (
+            group_delete_blast_radius,
+            preview,
+            refuse_unless_clear,
+        )
         from vmware_nsx_security.ops.security_group import delete_group as _fn
 
         client = _get_connection(target)
+        radius = group_delete_blast_radius(client, group_id)
+        if confirm is not True:
+            return preview(radius)
+        refuse_unless_clear("delete_group", radius)
         result = _fn(client, group_id)
-        return result
+        return {"action": "deleted", **result, "blast_radius": radius}
     except Exception as e:
         return _write_error(
             e, operation="delete_group", resource=group_id,
