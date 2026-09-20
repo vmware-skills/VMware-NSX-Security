@@ -47,7 +47,7 @@ VMware NSX DFW microsegmentation and security — 22 MCP tools for distributed f
 ## Quick Install
 
 ```bash
-uv tool install vmware-nsx-security==1.12.0
+uv tool install vmware-nsx-security==1.13.0
 vmware-nsx-security init      # guided setup: writes config + .env (chmod 600, password grep-safe), then verifies
 vmware-nsx-security doctor
 ```
@@ -306,7 +306,7 @@ single-command form `vmware-nsx-security mcp` (no PyPI re-resolve), or
 ## Setup
 
 ```bash
-uv tool install vmware-nsx-security==1.12.0
+uv tool install vmware-nsx-security==1.13.0
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
 # Edit config.yaml with your NSX Manager targets

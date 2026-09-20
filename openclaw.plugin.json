@@ -11,7 +11,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "vmware-nsx-security==1.12.0",
+        "vmware-nsx-security==1.13.0",
         "vmware-nsx-security-mcp"
       ]
     }
