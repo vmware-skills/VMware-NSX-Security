@@ -53,6 +53,8 @@ targets:
 default_target: nsx-prod
 ```
 
+**TLS verification**: `verify_ssl` defaults to `true` when omitted. If NSX Manager's certificate is issued by a private/enterprise CA, keep `verify_ssl: true` and point the `SSL_CERT_FILE` environment variable at a PEM bundle that contains that CA — in your shell, or in the MCP server's `env` block. `verify_ssl: false` disables certificate and hostname checks entirely; use it only for an isolated lab NSX Manager, never for a production target.
+
 **`environment` (optional label)**: policy scopes its rules by this value, so an environment-scoped `deny` rule in `~/.vmware/rules.yaml` can match on it — for example, to freeze state-changing writes on `production`. Any label you like works (`production`, `staging`, `lab`, `dc2-prod`); the target's *name* is not used for it.
 
 A target with no label is simply not matched by such a rule. Read-only operations are never affected either way. Run `vmware-audit policy` to see the rules currently in force.
