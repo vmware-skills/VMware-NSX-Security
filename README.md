@@ -189,6 +189,64 @@ entries carry `reason` + `acl_rule_id`), and a `dfw_hits` summary.
 - **REST APIs**: <https://developer.broadcom.com/xapis> — NSX-T Data Center REST API
 - **CLI Tools**: <https://developer.broadcom.com/tools> — VCF PowerCLI 9.1
 
+<!-- usage: remote-and-exposure -->
+## Remote access (HTTPS) and limiting tools
+
+By default `vmware-nsx-security mcp` speaks stdio to one local client and offers every tool. Two options change that
+(vmware-policy ≥ 1.21.0).
+
+**Serve over HTTPS** so clients on other machines can connect. Every caller needs a bearer token:
+
+```bash
+vmware-audit token create alice          # prints the token once; give it to alice
+vmware-audit token list                  # names only
+vmware-audit token revoke alice          # refused from its next request, no restart
+vmware-nsx-security mcp --transport https --host 0.0.0.0 --port 8443 \
+    --cert /etc/vmware-mcp/server.pem --key /etc/vmware-mcp/server-key.pem \
+    --public-name mcp.example.com
+```
+
+Connect a client (Claude Code shown; any MCP client that supports streamable HTTP and custom headers works):
+
+```bash
+claude mcp add --transport http vmware-nsx-security https://mcp.example.com:8443/mcp \
+    --header "Authorization: Bearer $VMWARE_MCP_TOKEN"
+```
+
+```json
+{
+  "mcpServers": {
+    "vmware-nsx-security": {
+      "type": "http",
+      "url": "https://mcp.example.com:8443/mcp",
+      "headers": { "Authorization": "Bearer ${VMWARE_MCP_TOKEN}" }
+    }
+  }
+}
+```
+
+- The server will not start without a token, refuses Host/Origin values outside `--public-name`, and checks
+  before it binds that unauthenticated requests get 401. Use a certificate your clients trust for those names.
+- Behind a TLS-terminating reverse proxy on the same machine use `--transport http --host 127.0.0.1
+  --public-name mcp.example.com` and pass the `Authorization` header through.
+- The audit log records each caller as `token:<name>`. Calls naming different targets run in parallel; calls that
+  name no target run one at a time, so name the target when several people share a server.
+- **Everyone who can reach the endpoint acts with this server's account.** Tokens identify callers; they grant
+  nothing on the platform. Run one endpoint per privilege level.
+
+**Offer only read tools, plus the writes you choose:**
+
+```bash
+vmware-nsx-security mcp --expose read --allow-write apply_vm_tag
+# or: VMWARE_NSX_SECURITY_MCP_EXPOSE=read VMWARE_NSX_SECURITY_MCP_ALLOW_WRITE=apply_vm_tag vmware-nsx-security mcp
+```
+
+Tools not offered do not appear in the client's tool list. A bad value or an unknown write tool stops the server
+(exit 2). This limits what clients are offered; it is not authorization, so the account itself should be
+least-privilege.
+
+Details: `skills/vmware-nsx-security/references/setup-guide.md` ("Serving MCP over HTTPS", "Limiting which tools are offered").
+
 ## License
 
 MIT
