@@ -107,12 +107,26 @@ from vmware_nsx_security.policy_environment import _cached_config, _environment_
 # ---------------------------------------------------------------------------
 
 
-def main(expose: Optional[str] = None, allow_write: Optional[str] = None) -> None:
+def main(
+    expose: Optional[str] = None,
+    allow_write: Optional[str] = None,
+    transport: Optional[str] = None,
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    cert: Optional[str] = None,
+    key: Optional[str] = None,
+    public_name: Optional[str] = None,
+    token_file: Optional[str] = None,
+) -> None:
     """Start the MCP server using stdio transport."""
     logging.basicConfig(level=logging.INFO)
-    from vmware_policy.exposure import apply_or_exit
-    apply_or_exit(mcp, skill="nsx_security", expose=expose, allow_write=allow_write)
-    mcp.run()
+    from vmware_policy.serve import run_server
+    run_server(
+        mcp,
+        skill="nsx_security",
+        expose=expose, allow_write=allow_write, transport=transport, host=host, port=port,
+        cert=cert, key=key, public_name=public_name, token_file=token_file,
+    )
 
 
 if __name__ == "__main__":

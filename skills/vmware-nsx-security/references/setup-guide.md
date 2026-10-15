@@ -9,7 +9,7 @@
 ## 1. Install
 
 ```bash
-uv tool install vmware-nsx-security==1.14.0
+uv tool install vmware-nsx-security==1.15.0
 ```
 
 Verify:
