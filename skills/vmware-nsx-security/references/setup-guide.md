@@ -9,7 +9,7 @@
 ## 1. Install
 
 ```bash
-uv tool install vmware-nsx-security==1.13.0
+uv tool install vmware-nsx-security==1.14.0
 ```
 
 Verify:
@@ -149,6 +149,33 @@ In Cursor Settings → MCP Servers:
 > `uvx --from vmware-nsx-security vmware-nsx-security-mcp`, which still works but re-resolves <!-- install-pin: historical -->
 > from PyPI on each launch and breaks behind corporate TLS proxies. The legacy
 > `vmware-nsx-security-mcp` entry point is also kept for backward compatibility.
+
+## Limiting which tools are offered
+
+By default the MCP server offers every tool. To offer only read tools, start it with `--expose read`, or set
+`VMWARE_NSX_SECURITY_MCP_EXPOSE=read` in the MCP client's `env` block (useful when the client launches `vmware-nsx-security mcp` itself). To offer
+chosen write tools as well, add `--allow-write` with a comma-separated list (or `VMWARE_NSX_SECURITY_MCP_ALLOW_WRITE`):
+
+```bash
+vmware-nsx-security mcp --expose read --allow-write apply_vm_tag
+```
+
+- A read tool is one annotated `readOnlyHint: true`; every other tool counts as a write.
+- An unknown setting, or a name that is not a write tool of this server, stops the server before it serves (exit
+  code 2), so it never offers more than you asked for. Pre-2.0 tool names are accepted.
+- With `--expose read`, the server prints one line to stderr saying what it exposes.
+- Flags and environment variables are not mixed: if either flag is given, both environment variables are
+  ignored, so a leftover `_ALLOW_WRITE` in the shell cannot widen `--expose read`. A blank flag value counts as
+  not given.
+- A tool that runs other steps (a plan, workflow or batch tool) carries every write it can execute, including
+  writes this setting hides. Expose such a tool only if you would expose those writes too.
+- A launcher that imports the server object can call
+  `vmware_policy.exposure.restrict_tools(mcp, skill="nsx_security", expose="read", allow_write=[...])` before running it,
+  instead of editing the SDK's tool registry.
+- This limits what clients are offered. It is **not** authorization: whether a call may change anything is decided by
+  the account's permissions, and deny rules in `~/.vmware/rules.yaml` still apply to every exposed tool.
+- An agent that can run shell commands can also reach the platform without MCP (SSH, curl, govc, PowerCLI). So
+  the service account itself must be least-privilege: exposure and deny rules are guardrails, not the boundary.
 
 ## 7. Docker (Optional)
 

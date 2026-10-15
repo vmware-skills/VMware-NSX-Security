@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Optional, Annotated
 
 import typer
 from rich.console import Console
@@ -726,7 +726,19 @@ def doctor(
 @app.command("mcp")
 @_cli_errors
 @cli_local("starts the MCP server; its tools audit themselves")
-def mcp_cmd() -> None:
+def mcp_cmd(
+    expose: Optional[str] = typer.Option(
+        None,
+        "--expose",
+        help="Which tools to offer: all (default) or read. Limits what clients see; "
+        "not authorization: the account's permissions still decide.",
+    ),
+    allow_write: Optional[str] = typer.Option(
+        None,
+        "--allow-write",
+        help="With --expose read: comma-separated write tools to offer as well.",
+    ),
+) -> None:
     """Start the MCP server (stdio transport).
 
     Single-command entry point for MCP clients:
@@ -749,7 +761,7 @@ def mcp_cmd() -> None:
 
     from vmware_nsx_security.mcp_server.server import main as _mcp_main
 
-    _mcp_main()
+    _mcp_main(expose=expose, allow_write=allow_write)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ For VM operations use vmware-aiops.
 """
 
 import logging
+from typing import Optional
 
 from vmware_policy import describe_tool_parameters
 
@@ -106,9 +107,11 @@ from vmware_nsx_security.policy_environment import _cached_config, _environment_
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
+def main(expose: Optional[str] = None, allow_write: Optional[str] = None) -> None:
     """Start the MCP server using stdio transport."""
     logging.basicConfig(level=logging.INFO)
+    from vmware_policy.exposure import apply_or_exit
+    apply_or_exit(mcp, skill="nsx_security", expose=expose, allow_write=allow_write)
     mcp.run()
 
 
