@@ -1,4 +1,4 @@
-## Unreleased — calls on one target run side by side over HTTPS
+## v1.16.0 — calls on one target run side by side over HTTPS
 
 When `vmware-nsx-security mcp` serves the network (`--transport https` or `http`), calls no longer queue behind each other.
 Calls that name the same target, or name no target, now run side by side instead of one at a time (HLD §16
