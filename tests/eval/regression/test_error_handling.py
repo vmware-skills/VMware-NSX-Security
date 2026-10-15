@@ -287,26 +287,23 @@ def test_is_alive_transport_error_means_dead(client: NsxClient) -> None:
 def test_connect_closes_stale_client_before_replacing() -> None:
     from vmware_nsx_security.connection import ConnectionManager
 
-    mgr = ConnectionManager.__new__(ConnectionManager)
-    stale = MagicMock()
-    stale.is_alive.return_value = False
-    mgr._clients = {"t1": stale}
-
     config = MagicMock()
     config.default_target = "t1"
     target_cfg = MagicMock()
     target_cfg.get_password.return_value = "pw"
     config.get_target.return_value = target_cfg
-    mgr._config = config
 
-    with patch("vmware_nsx_security.connection.NsxClient") as nsx_cls:
-        fresh = MagicMock()
-        nsx_cls.return_value = fresh
-        result = mgr.connect("t1")
+    stale, fresh = MagicMock(), MagicMock()
+    stale.is_alive.return_value = False
+    fresh.is_alive.return_value = True
+    with patch("vmware_nsx_security.connection.NsxClient", side_effect=[stale, fresh]):
+        mgr = ConnectionManager(config)
+        assert mgr.connect("t1") is stale
+        result = mgr.connect("t1")  # the probe finds it dead
 
     stale.close.assert_called_once()
     assert result is fresh
-    assert mgr._clients["t1"] is fresh
+    assert mgr.connect("t1") is fresh  # the replacement is what is kept
 
 
 # ── MCP layer: NsxApiError passes through _safe_error ────────────────────

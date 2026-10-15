@@ -20,6 +20,7 @@ import time
 from typing import Any
 
 import httpx
+from vmware_policy.pool import SessionPool
 
 from vmware_nsx_security.config import AppConfig, TargetConfig, load_config
 
@@ -402,7 +403,14 @@ class NsxClient:
 
 
 class ConnectionManager:
-    """Manages connections to multiple NSX Manager targets."""
+    """Manages connections to multiple NSX Manager targets.
+
+    Clients come from a per-target :class:`~vmware_policy.pool.SessionPool`
+    (HLD §16 D-13(2)). An MCP call on a network transport holds one client for
+    its whole body, so two calls never share a session (a client re-creates its
+    XSRF session in place on a 401). Outside a call (CLI, stdio) each target
+    keeps one cached client, as before. Keep in sync with VMware-NSX (踩坑 #21).
+    """
 
     def __init__(self, config: AppConfig) -> None:
         """Initialise with an AppConfig.
@@ -411,7 +419,14 @@ class ConnectionManager:
             config: Loaded application configuration.
         """
         self._config = config
-        self._clients: dict[str, NsxClient] = {}
+        self._pool: SessionPool[NsxClient] = SessionPool(
+            "vmware-nsx-security",
+            create=self._new_client,
+            is_alive=lambda client: client.is_alive(),
+            # Closing the httpx client is all a stale client needs: NSX
+            # sessions expire on the manager, and close() never dials out.
+            close=lambda client: client.close(),
+        )
 
     @classmethod
     def from_config(cls, config: AppConfig | None = None) -> ConnectionManager:
@@ -433,17 +448,7 @@ class ConnectionManager:
                 f"Available: {configured or '(none)'}"
             )
 
-        cached = self._clients.get(name)
-        if cached is not None:
-            if cached.is_alive():
-                return cached
-            # Close the stale client before replacing it — otherwise the old
-            # httpx connection pool leaks on every reconnect.
-            cached.close()
-            del self._clients[name]
-
-        target_cfg = self._config.get_target(name)
-        if target_cfg is None:
+        if self._config.get_target(name) is None:
             available = ", ".join(self._config.targets.keys())
             raise ValueError(
                 f"Target '{name}' not found. Copy an exact name from the list "
@@ -451,25 +456,25 @@ class ConnectionManager:
                 "~/.vmware-nsx-security/config.yaml (run 'vmware-nsx-security "
                 f"init' to add one interactively). Available: {available}"
             )
+        return self._pool.get(name)
 
+    def _new_client(self, name: str) -> NsxClient:
+        target_cfg = self._config.get_target(name)
+        if target_cfg is None:  # connect() checked; the config is not reloaded
+            raise ValueError(f"Target '{name}' not found.")
         # Resolve both halves of the credential together — a username left
         # behind by a rotation would pair with the new password and fail.
         password = target_cfg.get_password(name)
         username = target_cfg.get_username(name)
-        client = NsxClient(target_cfg, password, username, target_name=name)
-        self._clients[name] = client
-        return client
+        return NsxClient(target_cfg, password, username, target_name=name)
 
     def disconnect(self, target_name: str) -> None:
-        """Close and remove a client."""
-        if target_name in self._clients:
-            self._clients[target_name].close()
-            del self._clients[target_name]
+        """Close the target's clients (busy ones when their calls end)."""
+        self._pool.discard(target_name)
 
     def disconnect_all(self) -> None:
         """Disconnect from all targets."""
-        for name in list(self._clients):
-            self.disconnect(name)
+        self._pool.close_all()
 
     def list_targets(self) -> list[str]:
         """List available target names."""
@@ -477,4 +482,4 @@ class ConnectionManager:
 
     def list_connected(self) -> list[str]:
         """List currently connected target names."""
-        return list(self._clients.keys())
+        return self._pool.keys()
