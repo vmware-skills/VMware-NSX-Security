@@ -5,8 +5,8 @@ from typing import Optional
 from vmware_policy import vmware_tool
 
 from vmware_nsx_security.mcp_server._shared import (
-    _DOCTOR_HINT,
     _get_connection,
+    _hint_for,
     _safe_error,
     _write_error,
     mcp,
@@ -47,7 +47,7 @@ def list_groups(
         client = _get_connection(target)
         return _fn(client, name_filter=name_filter, limit=limit, offset=offset)
     except Exception as e:
-        return {"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}
+        return {"error": _safe_error(e, "nsx-security"), "hint": _hint_for(e)}
 
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
@@ -73,7 +73,7 @@ def get_group(group_id: str, target: Optional[str] = None) -> dict:
         client = _get_connection(target)
         return _fn(client, group_id)
     except Exception as e:
-        return {"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}
+        return {"error": _safe_error(e, "nsx-security"), "hint": _hint_for(e)}
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})

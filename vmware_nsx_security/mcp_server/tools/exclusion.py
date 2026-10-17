@@ -5,8 +5,8 @@ from typing import Optional
 from vmware_policy import vmware_tool
 
 from vmware_nsx_security.mcp_server._shared import (
-    _DOCTOR_HINT,
     _get_connection,
+    _hint_for,
     _safe_error,
     mcp,
 )
@@ -54,4 +54,4 @@ def list_dfw_exclusions(
         client = _get_connection(target)
         return _fn(client, limit=limit, offset=offset)
     except Exception as e:
-        return {"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}
+        return {"error": _safe_error(e, "nsx-security"), "hint": _hint_for(e)}

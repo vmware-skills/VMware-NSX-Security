@@ -5,8 +5,8 @@ from typing import Optional
 from vmware_policy import vmware_tool
 
 from vmware_nsx_security.mcp_server._shared import (
-    _DOCTOR_HINT,
     _get_connection,
+    _hint_for,
     _safe_error,
     _write_error,
     mcp,
@@ -38,7 +38,7 @@ def list_vm_tags(vm_display_name: str, target: Optional[str] = None) -> dict:
         client = _get_connection(target)
         return _fn(client, vm_display_name)
     except Exception as e:
-        return {"error": _safe_error(e, "nsx-security"), "hint": _DOCTOR_HINT}
+        return {"error": _safe_error(e, "nsx-security"), "hint": _hint_for(e)}
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})

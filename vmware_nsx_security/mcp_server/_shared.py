@@ -9,6 +9,7 @@ module (``server.py``) under the 800-line cap (踩坑 #17).
 """
 
 
+import json
 import logging
 import ssl
 import threading
@@ -19,13 +20,55 @@ from vmware_policy import sanitize
 from vmware_policy.pool import PoolTimeoutError
 
 from vmware_nsx_security.config import ConfigError, load_config
-from vmware_nsx_security.connection import ConnectionManager, NsxApiError
+from vmware_nsx_security.connection import (
+    SESSION_CREATE_PATH,
+    ConnectionManager,
+    NsxApiError,
+    is_request_status,
+)
 from vmware_nsx_security.ops.delete_gate import DeleteRefusedError
 from vmware_nsx_security import __version__
 
 logger = logging.getLogger(__name__)
 
 _DOCTOR_HINT = "Run 'vmware-nsx-security doctor' to verify connectivity."
+
+#: For an error about the request itself: the message already names the fix,
+#: and doctor would report green (same shape as VMware-Monitor 2.4.1).
+_FIX_IN_MESSAGE_HINT = "The error message says what to change; connectivity is not the problem."
+#: A ValueError's text is usually this skill's own remedy, but not always: one
+#: raised while parsing the server's answer names no fix. So it does not claim
+#: connectivity is fine (independent review, 2026-10-18).
+_CHECK_MESSAGE_HINT = (
+    "The error message should say what to change; if it names no fix, run "
+    "'vmware-nsx-security doctor'."
+)
+
+#: ValueErrors whose text was not authored as a remedy: a body that was not JSON
+#: (a reverse proxy answering HTML), not UTF-8, or a TLS error. Doctor checks those.
+_UNAUTHORED_VALUE_ERRORS = (ssl.SSLError, json.JSONDecodeError, UnicodeError)
+
+
+def _is_request_error(exc: BaseException) -> bool:
+    """True when the Manager is reachable and the request itself is wrong.
+
+    A 4xx answered to a call (not the session login, and not 401/403), and the
+    ValueErrors this skill raises for an unknown target, a rejected argument, or
+    a refused delete (``DeleteRefusedError``); ``ConnectionManager.connect``
+    signals an unknown target with a ValueError.
+    """
+    if isinstance(exc, NsxApiError):
+        return is_request_status(exc.status_code) and exc.path != SESSION_CREATE_PATH
+    return isinstance(exc, ValueError) and not isinstance(exc, _UNAUTHORED_VALUE_ERRORS)
+
+
+def _hint_for(exc: BaseException) -> str:
+    """The ``hint`` for a tool error: doctor only where doctor can find the cause."""
+    if not _is_request_error(exc):
+        return _DOCTOR_HINT
+    if isinstance(exc, (NsxApiError, DeleteRefusedError)):
+        return _FIX_IN_MESSAGE_HINT
+    return _CHECK_MESSAGE_HINT
 
 #: Longest gate refusal passed to the caller (see ``_safe_error``).
 _REFUSAL_MAX = 2000
@@ -134,7 +177,7 @@ def _write_error(
     callers pass them, they cost nothing, and removing them from eleven call
     sites is a rename with no reader.
     """
-    out: dict = {"error": _safe_error(exc, "nsx-security"), "hint": _DOCTOR_HINT}
+    out: dict = {"error": _safe_error(exc, "nsx-security"), "hint": _hint_for(exc)}
     # A gated delete's refusal carries what it measured (HLD §7 L1).
     radius = getattr(exc, "blast_radius", None)
     if isinstance(radius, dict):
