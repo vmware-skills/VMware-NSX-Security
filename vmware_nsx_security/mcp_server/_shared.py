@@ -27,6 +27,7 @@ from vmware_nsx_security.connection import (
     is_request_status,
 )
 from vmware_nsx_security.ops.delete_gate import DeleteRefusedError
+from vmware_nsx_security.ops.tags import VmNotFoundError
 from vmware_nsx_security import __version__
 
 logger = logging.getLogger(__name__)
@@ -55,8 +56,12 @@ def _is_request_error(exc: BaseException) -> bool:
     A 4xx answered to a call (not the session login, and not 401/403), and the
     ValueErrors this skill raises for an unknown target, a rejected argument, or
     a refused delete (``DeleteRefusedError``); ``ConnectionManager.connect``
-    signals an unknown target with a ValueError.
+    signals an unknown target with a ValueError. Also a VM name the fabric does
+    not know (``VmNotFoundError``) — a ``KeyError`` subclass, named here because
+    any other ``KeyError`` is unplanned (a missing key in the server's answer).
     """
+    if isinstance(exc, VmNotFoundError):
+        return True
     if isinstance(exc, NsxApiError):
         return is_request_status(exc.status_code) and exc.path != SESSION_CREATE_PATH
     return isinstance(exc, ValueError) and not isinstance(exc, _UNAUTHORED_VALUE_ERRORS)
@@ -66,7 +71,7 @@ def _hint_for(exc: BaseException) -> str:
     """The ``hint`` for a tool error: doctor only where doctor can find the cause."""
     if not _is_request_error(exc):
         return _DOCTOR_HINT
-    if isinstance(exc, (NsxApiError, DeleteRefusedError)):
+    if isinstance(exc, (NsxApiError, DeleteRefusedError, VmNotFoundError)):
         return _FIX_IN_MESSAGE_HINT
     return _CHECK_MESSAGE_HINT
 

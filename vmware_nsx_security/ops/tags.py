@@ -29,6 +29,19 @@ if TYPE_CHECKING:
 _log = logging.getLogger("vmware-nsx-security.tags")
 
 
+class VmNotFoundError(KeyError):
+    """No VM with that display name in the NSX fabric inventory.
+
+    A request error: the name is wrong, not the connection, and the message
+    names the fix (the MCP hint classifier treats it so, not as "run doctor").
+    Still a ``KeyError``, so callers catching that keep working. ``str()``
+    returns the message as written, without ``KeyError``'s quoting.
+    """
+
+    def __str__(self) -> str:
+        return str(self.args[0]) if self.args else ""
+
+
 # ---------------------------------------------------------------------------
 # VM tag list
 # ---------------------------------------------------------------------------
@@ -73,7 +86,7 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
        Migrate to ``items``.
 
     Raises:
-        KeyError: If no VM with that display name is found.
+        VmNotFoundError: (a ``KeyError``) If no VM with that display name is found.
         ValueError: If multiple VMs share the same display name.
     """
     safe_name = sanitize(vm_display_name)
@@ -84,7 +97,7 @@ def list_vm_tags(client: NsxClient, vm_display_name: str) -> dict:
     vms = data.get("results", [])
 
     if not vms:
-        raise KeyError(
+        raise VmNotFoundError(
             "No such VM in the NSX fabric inventory. The name must match "
             "the vCenter VM name exactly (case-sensitive, no "
             "wildcards). Run vmware-monitor's list_virtual_machines to copy "

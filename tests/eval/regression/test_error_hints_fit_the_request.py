@@ -117,3 +117,45 @@ def test_no_tool_module_hands_out_the_doctor_hint_unconditionally() -> None:
     assert tools, "no tool modules found"
     offenders = [p.name for p in tools if '"hint": _DOCTOR_HINT' in p.read_text(encoding="utf-8")]
     assert not offenders, offenders
+
+
+# -- a VM name the fabric does not know (2026-10-18) -------------------------
+
+
+def _client_with_no_vms() -> MagicMock:
+    client = MagicMock()
+    client.get.return_value = {"results": []}
+    return client
+
+
+def test_an_unknown_vm_name_is_a_request_error_that_still_is_a_key_error() -> None:
+    """The lookup raised a bare KeyError, which the classifier sends to doctor.
+
+    The name is wrong, not the connection; the message names the fix. Callers
+    that catch ``KeyError`` (the CLI, and anyone following the documented
+    ``Raises:``) must keep working, so the new type is still a KeyError.
+    """
+    from vmware_nsx_security.ops.tags import VmNotFoundError, list_vm_tags
+
+    with pytest.raises(KeyError) as info:
+        list_vm_tags(_client_with_no_vms(), "web-99")
+    exc = info.value
+    assert isinstance(exc, VmNotFoundError)
+    assert _shared._is_request_error(exc)
+    assert _shared._hint_for(exc) == _shared._FIX_IN_MESSAGE_HINT
+    # KeyError's str() wraps the text in quotes; this one reads as written.
+    assert str(exc).startswith("No such VM in the NSX fabric inventory.")
+
+
+def test_an_unknown_vm_name_through_the_tool_gets_no_doctor_hint() -> None:
+    from vmware_nsx_security.mcp_server.tools import tags as tag_tools
+
+    with patch.object(tag_tools, "_get_connection", return_value=_client_with_no_vms()):
+        result = tag_tools.list_vm_tags("web-99", target="lab")
+    assert result["error"].startswith("No such VM in the NSX fabric inventory.")
+    assert result["hint"] == _shared._FIX_IN_MESSAGE_HINT
+
+
+def test_an_unplanned_key_error_still_goes_to_doctor() -> None:
+    """Only the authored lookup failure is reclassified, not every KeyError."""
+    assert _shared._hint_for(KeyError("results")) == _shared._DOCTOR_HINT
