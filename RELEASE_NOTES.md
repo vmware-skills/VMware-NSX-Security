@@ -1,7 +1,12 @@
+## Unreleased
+
+* An unknown VM name in the tag tools ("No such VM in the NSX fabric inventory") is a request error: it no longer
+  tells the agent to run `doctor`.
+
 ## v1.17.1 — a target-limited role can use this skill; error hints fit the error
 
 * **Error hints fit the error.** An error about the request itself (a 4xx other than 401/403, an unknown
-  target, a refused delete, a VM name the fabric does not know) no longer tells the agent to run `doctor`, which would report green; an argument error that may
+  target, a refused delete) no longer tells the agent to run `doctor`, which would report green; an argument error that may
   name no fix offers doctor only as a fallback. Connection, credential, 5xx and unparseable-response errors keep it.
 
 * **Roles (HLD §18): the target resolver raised on every call.** It read a `name` field that this skill's target
