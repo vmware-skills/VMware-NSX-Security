@@ -22,6 +22,8 @@ compatibility: >
 
 # VMware NSX Security
 
+> Self-test: [guide](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md).
+
 > **Disclaimer**: This is a community-maintained open-source project and is **not affiliated with, endorsed by, or sponsored by VMware, Inc. or Broadcom Inc.** "VMware" and "NSX" are trademarks of Broadcom. Source code is publicly auditable at [github.com/vmware-skills/VMware-NSX-Security](https://github.com/vmware-skills/VMware-NSX-Security) under the MIT license.
 
 VMware NSX DFW microsegmentation and security — 22 MCP tools for distributed firewall, security groups, VM tags, the DFW exclusion list, Traceflow, and IDPS.
