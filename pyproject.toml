@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vmware-nsx-security"
-version = "1.17.1"
+version = "1.17.2"
 description = "VMware NSX DFW microsegmentation and security: distributed firewall, security groups, tags, traceflow, IDPS"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "Wei Zhou", email = "wei-wz.zhou@broadcom.com" }]
+authors = [{ name = "Wei Zhou", email = "zhouwei008@gmail.com" }]
 keywords = ["vmware", "nsx", "nsx-t", "dfw", "microsegmentation", "firewall", "mcp", "ai-ops"]
 classifiers = [
     "Development Status :: 4 - Beta",
