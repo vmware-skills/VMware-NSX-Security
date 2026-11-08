@@ -1,5 +1,7 @@
 ## Unreleased
 
+* The NSX Manager REST client now honors system proxy bypass rules for the configured origin while preserving TLS verification and CA environment settings.
+
 * An unknown VM name in the tag tools ("No such VM in the NSX fabric inventory") is a request error: it no longer
   tells the agent to run `doctor`.
 
