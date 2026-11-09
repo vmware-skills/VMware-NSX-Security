@@ -16,7 +16,7 @@ compatibility: >
   vmware-policy auto-installed as Python dependency (provides @vmware_tool decorator and audit logging). All write operations audited to ~/.vmware/audit.db.
   Credentials: Each NSX Manager target requires a per-target password env var in ~/.vmware-nsx-security/.env following the pattern VMWARE_NSX_SECURITY_<TARGET_NAME_UPPER>_PASSWORD. Passwords are never logged or echoed.
   Destructive operations: DFW policy delete checks for active rules, security group delete checks for references. The three MCP delete tools preview by default — without confirm=True they return the blast radius and change nothing, and confirm=True is refused while a blocker remains or a read failed. IDS/IPS config changes require double confirmation. Traceflow is read-only.
-  No webhooks, no outbound network calls, no guest operations. Local only: stdio MCP + NSX Policy API (HTTPS 443).
+  No webhooks or guest operations; outbound API calls go to the configured NSX Manager. Default stdio is local; optional authenticated HTTPS opens a listener. NSX calls go only to the configured NSX API (HTTPS 443).
   Transitive dependencies: Only vmware-policy (audit/policy). No post-install scripts or background services.
 ---
 
@@ -338,7 +338,7 @@ NSX Manager
 DFW Policies / Rules / Security Groups / Tags / IDPS
 ```
 
-The MCP server uses stdio transport (local only, no network listener). All connections to NSX Manager use HTTPS on port 443.
+By default the MCP server uses local stdio without a listener; opt-in HTTPS opens a listener and requires TLS plus caller authentication. All connections to NSX Manager use HTTPS on port 443.
 
 ## Audit & Safety
 

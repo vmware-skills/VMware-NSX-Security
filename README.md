@@ -11,20 +11,30 @@ VMware NSX DFW microsegmentation and security MCP skill — 22 tools for distrib
 
 > **Companion skills**: [vmware-nsx](https://github.com/vmware-skills/VMware-NSX) (networking), [vmware-aiops](https://github.com/vmware-skills/VMware-AIops) (VM lifecycle), [vmware-monitor](https://github.com/vmware-skills/VMware-Monitor) (monitoring)
 
+MCP uses local stdio by default. Opt-in HTTPS opens the configured listener and requires TLS plus caller authentication; it is a network service, not a local-only mode. Credential examples create owner-only placeholder files without overwriting existing files; edit secrets locally.
+
 ## Quick Start
 
 ```bash
-uv tool install vmware-nsx-security
+uv tool install vmware-nsx-security==1.17.2
 
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
 # Edit config.yaml with your NSX Manager host
 
-echo "VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD=your_password" > ~/.vmware-nsx-security/.env
-chmod 600 ~/.vmware-nsx-security/.env
+(
+  umask 077
+  set -C  # Refuse existing files; edit an existing .env locally instead
+  cat > ~/.vmware-nsx-security/.env <<'EOF'
+VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD=REPLACE_IN_LOCAL_EDITOR
+EOF
+)
+# Before continuing, edit .env locally; never type live secrets into shell commands.
 
 vmware-nsx-security doctor
 ```
+
+This writes placeholders only. Enter passwords or tokens using a local editor after creation; do not paste live credentials into terminal commands, chat or commits. If the file exists, the command refuses to overwrite it; edit the existing file after checking its permissions are `600`.
 
 ### Offline / Air-Gapped Install (from source)
 
@@ -79,7 +89,7 @@ not see. `dfw_excluded: null` means the list could not be read — which is not 
 
 ## MCP Server Setup
 
-**After `uv tool install vmware-nsx-security`, start the MCP server with one command** (v1.5.15+):
+**After `uv tool install vmware-nsx-security==1.17.2`, start the MCP server with one command** (v1.5.15+):
 
 ```bash
 # Recommended — single command, no network re-resolve
@@ -110,7 +120,7 @@ Add to `~/.claude.json`:
 
 ```bash
 # Run without installing (requires PyPI access each launch)
-uvx --from vmware-nsx-security vmware-nsx-security mcp
+uvx --from vmware-nsx-security==1.17.2 vmware-nsx-security mcp
 
 # Legacy entry point (still works, kept for backward compatibility)
 vmware-nsx-security-mcp

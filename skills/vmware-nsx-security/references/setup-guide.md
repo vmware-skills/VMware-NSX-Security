@@ -65,14 +65,18 @@ Passwords are **never** stored in `config.yaml`. Use environment variables or a 
 
 ```bash
 # Create .env file
-cat > ~/.vmware-nsx-security/.env << 'EOF'
-VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD=your_prod_password
-VMWARE_NSX_SECURITY_NSX_LAB_PASSWORD=your_lab_password
+(
+  umask 077
+  set -C  # Refuse existing files; edit an existing .env locally instead
+  cat > ~/.vmware-nsx-security/.env <<'EOF'
+VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD=REPLACE_IN_LOCAL_EDITOR
+VMWARE_NSX_SECURITY_NSX_LAB_PASSWORD=REPLACE_IN_LOCAL_EDITOR
 EOF
-
-# Secure the file — IMPORTANT
-chmod 600 ~/.vmware-nsx-security/.env
+)
+# Before continuing, edit .env locally; never type live secrets into shell commands.
 ```
+
+This writes placeholders only. Enter passwords or tokens using a local editor after creation; do not paste live credentials into terminal commands, chat or commits. If the file exists, the command refuses to overwrite it; edit the existing file after checking its permissions are `600`.
 
 **Password variable naming convention**: `VMWARE_NSX_SECURITY_<TARGET>_PASSWORD`
 where `<TARGET>` is the target name uppercased with hyphens → underscores.
@@ -146,7 +150,7 @@ In Cursor Settings → MCP Servers:
 ```
 
 > v1.5.15+ recommends the single-command form `vmware-nsx-security mcp`. Pre-1.5.15 used
-> `uvx --from vmware-nsx-security vmware-nsx-security-mcp`, which still works but re-resolves <!-- install-pin: historical -->
+> `uvx --from vmware-nsx-security==1.17.2 vmware-nsx-security-mcp`, which still works but re-resolves
 > from PyPI on each launch and breaks behind corporate TLS proxies. The legacy
 > `vmware-nsx-security-mcp` entry point is also kept for backward compatibility.
 
@@ -274,4 +278,4 @@ To run the agent read-only, give it a read-only NSX service account (RBAC) — w
 - `.env` must be `chmod 600` — the doctor check warns if it is too permissive
 - Use a dedicated read/write NSX account for security operations, not the global `admin` superuser
 - Audit logs are written to `~/.vmware/audit.db` (SQLite WAL mode, via vmware-policy)
-- The MCP server uses stdio transport — it never opens a network port; it is started on-demand by your AI agent
+- By default the MCP server uses local stdio, started on demand by the agent, without a listener. Opt-in HTTPS opens the configured listener and requires TLS plus caller authentication
