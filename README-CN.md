@@ -1,11 +1,22 @@
 <!-- mcp-name: io.github.vmware-skills/vmware-nsx-security -->
+
 # VMware NSX Security
 
-要用自己的模型和 Agent 平台进行只读自测，请看 marketplace 根目录的[共享模型适配自测任务](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md)。
+[![PyPI](https://img.shields.io/pypi/v/vmware-nsx-security)](https://pypi.org/project/vmware-nsx-security/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#readme-license)
 
-> **作者**: Wei Zhou, VMware by Broadcom — zhouwei008@gmail.com
-> 本项目由 VMware 工程师维护的社区项目，非 VMware 官方产品。
-> VMware 官方开发者工具请访问 [developer.broadcom.com](https://developer.broadcom.com)。
+[English](README.md) | 中文
+
+维护者: Wei Zhou · [zhouwei008@gmail.com](mailto:zhouwei008@gmail.com)
+
+社区维护的开源项目，非 VMware 或 Broadcom 官方产品。
+
+[概述](#readme-overview) · [快速开始](#readme-quick-start) · [MCP 配置](#readme-mcp-configuration) · [能力与工作流](#readme-capabilities-and-workflows) · [安全与审计](#readme-safety-and-audit) · [故障排查](#readme-troubleshooting) · [配套 Skills](#readme-companion-skills) · [参考资料](#readme-reference) · [许可证](#readme-license)
+
+<a id="readme-overview"></a>
+
+## 概述
+
+默认通过本地 Stdio 运行；请在本机配置所需目标和凭据。
 
 VMware NSX DFW 微分段与安全管理 MCP skill — 22 个工具，涵盖分布式防火墙策略与规则、安全组、VM 标签、DFW 排除列表、Traceflow 数据包追踪和 IDPS。
 
@@ -13,7 +24,25 @@ VMware NSX DFW 微分段与安全管理 MCP skill — 22 个工具，涵盖分�
 
 MCP 默认使用本地 stdio。启用可选 HTTPS 后会打开配置的监听端口，并要求 TLS 与调用者认证；此时属于网络服务。凭据示例先创建仅当前用户可读写的占位文件，拒绝覆盖已有文件，再由用户在本地编辑秘密值。
 
+完整的 Agent 指令见 [`skills/vmware-nsx-security/SKILL.md`](skills/vmware-nsx-security/SKILL.md).
+
+<a id="readme-quick-start"></a>
+
 ## 快速开始
+
+需要 Python `>=3.10` 和 `uv`。
+
+```bash
+uv tool install vmware-nsx-security==1.17.2
+vmware-nsx-security --help
+```
+
+目标、凭据和本地数据目录设置见 [setup guide](skills/vmware-nsx-security/references/setup-guide.md).
+
+<details>
+<summary>安装与配置详情（含离线安装）</summary>
+
+### 快速开始
 
 ```bash
 uv tool install vmware-nsx-security==1.17.2
@@ -36,7 +65,7 @@ vmware-nsx-security doctor
 
 模板只写入占位符。创建后用本地编辑器填写密码或令牌；不要把真实凭据粘贴到终端命令、聊天或提交中。若文件已存在，上述命令会拒绝覆盖；直接编辑现有文件并先确认权限为 `600`。
 
-### 离线 / 隔离网络安装（从源码）
+#### 离线 / 隔离网络安装（从源码）
 
 本项目采用现代 PEP 517 构建系统（hatchling），因此**没有 `setup.py`**——这是
 预期设计，而非缺失文件。如果你克隆源码后遇到
@@ -63,29 +92,39 @@ pip wheel . -w dist        # → dist/*.whl   （或用 uv build 仅构建本包
 pip install --no-index --find-links dist vmware-nsx-security
 ```
 
-## 功能
 
-| 类别 | 工具数 |
-|------|--------|
-| DFW 策略 | 列出、获取、创建、更新、删除、列出规则（6 个） |
-| DFW 规则 | 创建、更新、删除、统计（4 个） |
-| 安全组 | 列出、获取、创建、删除（4 个） |
-| VM 标签 | 列出标签、应用标签、移除标签（3 个） |
-| Traceflow | 运行追踪、获取结果（2 个） |
-| IDPS | 列出 Profile、签名状态 + 全局设置（2 个） |
-| DFW 排除列表 | 列出被排除的成员（1 个） |
+</details>
 
-**共 22 个 MCP 工具**（11 只读 + 11 写入）
+<a id="readme-mcp-configuration"></a>
 
-### DFW 排除列表
+## MCP 配置
 
-在 NSX 分布式防火墙排除列表上的虚拟机，其数据路径中没有 DFW：指名它的规则依然存在，但一条都不生效。
-在 VCF 环境中，管理类虚拟机（vCenter、VCF Operations、NSX Manager）通常都在该列表上——某套真实的
-NSX 9.1 环境中 12 台虚拟机有 10 台被排除。`list_dfw_exclusions` 列出该列表，`list_vm_tags` /
-`get_group` / `list_dfw_policies` 会指出成员是否被排除，因此绝不会对 DFW 根本看不到的虚拟机报告
-「受 DFW 策略保护」。`dfw_excluded: null` 表示无法读取该列表——这与 `false` 不是一回事。
+将以下配置复制到 MCP 客户端的本地 Stdio 配置中。客户端需要能找到 `uvx`；首次安装所需包时需要访问包源。
 
-## MCP 服务器配置
+```json
+{
+  "mcpServers": {
+    "vmware-nsx-security": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "vmware-nsx-security==1.17.2",
+        "vmware-nsx-security-mcp"
+      ],
+      "env": {
+        "VMWARE_NSX_SECURITY_CONFIG": "~/.vmware-nsx-security/config.yaml"
+      }
+    }
+  }
+}
+```
+
+以下保留预先安装 CLI 的用法及各工具特有的 MCP 选项。
+
+<details>
+<summary>预先安装的 CLI 与其他 MCP 选项</summary>
+
+### MCP 服务器配置
 
 **v1.5.15+ 推荐方式**：完成 `uv tool install vmware-nsx-security==1.17.2` 后，**一条命令启动 MCP**：
 
@@ -129,9 +168,38 @@ vmware-nsx-security-mcp
 
 </details>
 
-## 常见操作
 
-### 对应用进行微分段
+</details>
+
+<a id="readme-capabilities-and-workflows"></a>
+
+## 能力与工作流
+
+### 功能
+
+| 类别 | 工具数 |
+|------|--------|
+| DFW 策略 | 列出、获取、创建、更新、删除、列出规则（6 个） |
+| DFW 规则 | 创建、更新、删除、统计（4 个） |
+| 安全组 | 列出、获取、创建、删除（4 个） |
+| VM 标签 | 列出标签、应用标签、移除标签（3 个） |
+| Traceflow | 运行追踪、获取结果（2 个） |
+| IDPS | 列出 Profile、签名状态 + 全局设置（2 个） |
+| DFW 排除列表 | 列出被排除的成员（1 个） |
+
+**共 22 个 MCP 工具**（11 只读 + 11 写入）
+
+#### DFW 排除列表
+
+在 NSX 分布式防火墙排除列表上的虚拟机，其数据路径中没有 DFW：指名它的规则依然存在，但一条都不生效。
+在 VCF 环境中，管理类虚拟机（vCenter、VCF Operations、NSX Manager）通常都在该列表上——某套真实的
+NSX 9.1 环境中 12 台虚拟机有 10 台被排除。`list_dfw_exclusions` 列出该列表，`list_vm_tags` /
+`get_group` / `list_dfw_policies` 会指出成员是否被排除，因此绝不会对 DFW 根本看不到的虚拟机报告
+「受 DFW 策略保护」。`dfw_excluded: null` 表示无法读取该列表——这与 `false` 不是一回事。
+
+### 常见操作
+
+#### 对应用进行微分段
 
 ```bash
 # 1. 按标签创建安全组 — 使用 create_group MCP 工具
@@ -142,7 +210,7 @@ vmware-nsx-security-mcp
 vmware-nsx-security policy create web-app-policy --name "Web to App" --category Application
 ```
 
-### 为 VM 打标签
+#### 为 VM 打标签
 
 ```bash
 # 查询 VM 及其 external ID
@@ -152,7 +220,7 @@ vmware-nsx-security tag list my-vm-01
 vmware-nsx-security tag apply <external-id> --scope tier --value web
 ```
 
-### 追踪数据包路径
+#### 追踪数据包路径
 
 ```bash
 vmware-nsx-security traceflow run <src-lport-id> \
@@ -163,7 +231,11 @@ vmware-nsx-security traceflow run <src-lport-id> \
 `resource_type` 区分的逐跳 `observations`（Dropped* 条目携带 `reason` +
 `acl_rule_id`）以及 `dfw_hits` 命中摘要。
 
-## 安全性
+<a id="readme-safety-and-audit"></a>
+
+## 安全与审计
+
+### 安全性
 
 - **依赖检查**：有活跃规则时不允许删除策略；被 DFW 或网关防火墙规则/作用域引用、或属于某个父组的安全组不允许删除；引用扫描失败时中止删除
 - **审计日志**：所有写操作记录到 `~/.vmware-nsx-security/audit.log`（JSON Lines 格式）
@@ -172,7 +244,7 @@ vmware-nsx-security traceflow run <src-lport-id> \
 - **MCP 删除预览**：`delete_dfw_policy`、`delete_dfw_rule`、`delete_group` 默认只预览 —— 不传 `confirm=True` 时返回 `blast_radius`（将删除什么、`blockers`、`unmeasured`），不删除任何东西；仍有阻塞项或有读取失败时，`confirm=True` 会被拒绝
 - **凭据安全**：密码仅从环境变量读取，永不写入 config.yaml
 
-### 配套 Skill
+#### 配套 Skill
 
 | Skill | 功能范围 | 工具数 | 安装 |
 |-------|---------|:-----:|------|
@@ -184,7 +256,8 @@ vmware-nsx-security traceflow run <src-lport-id> \
 | **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops 指标、告警、容量规划 | 28 | `uv tool install vmware-aria` |
 
 <!-- usage: remote-and-exposure -->
-## 远程访问（HTTPS）与限制工具
+
+### 远程访问（HTTPS）与限制工具
 
 默认情况下 `vmware-nsx-security mcp` 通过 stdio 服务一个本地客户端，并提供全部工具。以下两个选项可以改变这一点
 （需 vmware-policy ≥ 1.21.0）。
@@ -247,10 +320,30 @@ vmware-nsx-security mcp --expose read --allow-write apply_vm_tag
 
 详见 `skills/vmware-nsx-security/references/setup-guide.md`（"Serving MCP over HTTPS"、"Limiting which tools are offered"）。
 
-## 系统代理绕过
+<a id="readme-troubleshooting"></a>
+
+## 故障排查
+
+### 系统代理绕过
 
 NSX Manager REST 客户端按操作系统的代理绕过列表直连配置的目标地址。
 TLS 校验仍由 `verify_ssl` 控制，`SSL_CERT_FILE` 等 CA 环境设置继续生效；其他地址保留原有代理路由。
+
+<a id="readme-companion-skills"></a>
+
+## 配套 Skills
+
+VMware Skills 家族包含 14 个 MCP Server 和共享 Policy 库。按职责选择工具： [vmware-skills](https://github.com/vmware-skills).
+
+<a id="readme-reference"></a>
+
+## 参考资料
+
+变更记录： [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+使用自己的模型和 Agent 宿主进行只读自测： [model-fit self-test](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md).
+
+<a id="readme-license"></a>
 
 ## 许可证
 
