@@ -1,6 +1,6 @@
 {
   "name": "vmware-nsx-security",
-  "version": "1.17.2",
+  "version": "1.17.3",
   "description": "VMware NSX DFW microsegmentation and security: distributed firewall, security groups, tags, traceflow, IDPS",
   "mcpServers": {
     "vmware-nsx-security": {
@@ -8,7 +8,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "vmware-nsx-security==1.17.2",
+        "vmware-nsx-security==1.17.3",
         "vmware-nsx-security-mcp"
       ]
     }

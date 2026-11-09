@@ -1,3 +1,16 @@
+## v1.17.3 — Security documentation and Gemini extension packaging
+
+Released 2026-11-09.
+
+Clarify actual capability, credential, local-write and transport boundaries where applicable.
+Pin documented setup/fallback tools and make credential examples owner-only before writing,
+without overwriting existing files. Runtime permissions, TLS defaults and approval behavior are unchanged.
+These edits do not establish a new ClawHub scan verdict.
+
+Add the root Gemini CLI extension manifest and discovery metadata, using the existing canonical skill and exact MCP package version. No duplicate skill entrypoint is introduced.
+
+Runtime infrastructure operations, permissions, TLS defaults and confirmation behavior are unchanged. No new vSphere/VCF 9.x or live product compatibility is claimed. ClawHub skill and bundle verdicts are checked separately after publication; documentation corrections are not a clean-scan claim.
+
 ## v1.17.2 — system proxy bypass and dependency security (2026-11-08)
 
 * Update public author/project contact metadata to `zhouwei008@gmail.com`.
@@ -7,12 +20,6 @@
 * An unknown VM name in the tag tools ("No such VM in the NSX fabric inventory") is a request error: it no longer
   tells the agent to run `doctor`.
 
-## Unreleased — security documentation corrections
-
-Clarify actual capability, credential, local-write and transport boundaries where applicable.
-Pin documented setup/fallback tools and make credential examples owner-only before writing,
-without overwriting existing files. Runtime permissions, TLS defaults and approval behavior are unchanged.
-These edits do not establish a new ClawHub scan verdict.
 
 ## v1.17.1 — a target-limited role can use this skill; error hints fit the error
 

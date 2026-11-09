@@ -33,7 +33,7 @@ Full agent instructions: [`skills/vmware-nsx-security/SKILL.md`](skills/vmware-n
 Requires Python `>=3.10` and `uv`.
 
 ```bash
-uv tool install vmware-nsx-security==1.17.2
+uv tool install vmware-nsx-security==1.17.3
 vmware-nsx-security --help
 ```
 
@@ -45,7 +45,7 @@ Target, credential and local data setup: [setup guide](skills/vmware-nsx-securit
 ### Quick Start
 
 ```bash
-uv tool install vmware-nsx-security==1.17.2
+uv tool install vmware-nsx-security==1.17.3
 
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
@@ -107,7 +107,7 @@ Copy this configuration into your MCP client's local stdio settings. The client 
   "mcpServers": {
     "vmware-nsx-security": {
       "command": "uvx",
-      "args": ["--from", "vmware-nsx-security==1.17.2", "vmware-nsx-security-mcp"],
+      "args": ["--from", "vmware-nsx-security==1.17.3", "vmware-nsx-security-mcp"],
       "env": {
         "VMWARE_NSX_SECURITY_CONFIG": "~/.vmware-nsx-security/config.yaml"
       }
@@ -123,7 +123,7 @@ The following sections retain preinstalled CLI alternatives and product-specific
 
 ### MCP Server Setup
 
-**After `uv tool install vmware-nsx-security==1.17.2`, start the MCP server with one command** (v1.5.15+):
+**After `uv tool install vmware-nsx-security==1.17.3`, start the MCP server with one command** (v1.5.15+):
 
 ```bash
 # Recommended — single command, no network re-resolve
@@ -154,7 +154,7 @@ Add to `~/.claude.json`:
 
 ```bash
 # Run without installing (requires PyPI access each launch)
-uvx --from vmware-nsx-security==1.17.2 vmware-nsx-security mcp
+uvx --from vmware-nsx-security==1.17.3 vmware-nsx-security mcp
 
 # Legacy entry point (still works, kept for backward compatibility)
 vmware-nsx-security-mcp
