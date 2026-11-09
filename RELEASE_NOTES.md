@@ -7,6 +7,13 @@
 * An unknown VM name in the tag tools ("No such VM in the NSX fabric inventory") is a request error: it no longer
   tells the agent to run `doctor`.
 
+## Unreleased — security documentation corrections
+
+Clarify actual capability, credential, local-write and transport boundaries where applicable.
+Pin documented setup/fallback tools and make credential examples owner-only before writing,
+without overwriting existing files. Runtime permissions, TLS defaults and approval behavior are unchanged.
+These edits do not establish a new ClawHub scan verdict.
+
 ## v1.17.1 — a target-limited role can use this skill; error hints fit the error
 
 * **Error hints fit the error.** An error about the request itself (a 4xx other than 401/403, an unknown

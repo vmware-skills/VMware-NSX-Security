@@ -11,20 +11,30 @@ VMware NSX DFW 微分段与安全管理 MCP skill — 22 个工具，涵盖分�
 
 > **配套 skill**：[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)（网络）、[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)（VM 生命周期）、[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)（监控）
 
+MCP 默认使用本地 stdio。启用可选 HTTPS 后会打开配置的监听端口，并要求 TLS 与调用者认证；此时属于网络服务。凭据示例先创建仅当前用户可读写的占位文件，拒绝覆盖已有文件，再由用户在本地编辑秘密值。
+
 ## 快速开始
 
 ```bash
-uv tool install vmware-nsx-security
+uv tool install vmware-nsx-security==1.17.2
 
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
 # 编辑 config.yaml，填写 NSX Manager 地址
 
-echo "VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD=your_password" > ~/.vmware-nsx-security/.env
-chmod 600 ~/.vmware-nsx-security/.env
+(
+  umask 077
+  set -C  # 拒绝覆盖已有文件；已有 .env 请直接用本地编辑器修改
+  cat > ~/.vmware-nsx-security/.env <<'EOF'
+VMWARE_NSX_SECURITY_NSX_PROD_PASSWORD=REPLACE_IN_LOCAL_EDITOR
+EOF
+)
+# 继续前，先用本地编辑器填写 .env；不要在终端命令中输入真实秘密值。
 
 vmware-nsx-security doctor
 ```
+
+模板只写入占位符。创建后用本地编辑器填写密码或令牌；不要把真实凭据粘贴到终端命令、聊天或提交中。若文件已存在，上述命令会拒绝覆盖；直接编辑现有文件并先确认权限为 `600`。
 
 ### 离线 / 隔离网络安装（从源码）
 
@@ -77,7 +87,7 @@ NSX 9.1 环境中 12 台虚拟机有 10 台被排除。`list_dfw_exclusions` 列
 
 ## MCP 服务器配置
 
-**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-nsx-security` 后，**一条命令启动 MCP**：
+**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-nsx-security==1.17.2` 后，**一条命令启动 MCP**：
 
 ```bash
 # 推荐 — 单命令，无网络依赖
@@ -108,7 +118,7 @@ VMWARE_NSX_SECURITY_CONFIG=/path/to/config.yaml vmware-nsx-security mcp
 
 ```bash
 # 不想安装，临时运行（每次需要联网 resolve 依赖）
-uvx --from vmware-nsx-security vmware-nsx-security mcp
+uvx --from vmware-nsx-security==1.17.2 vmware-nsx-security mcp
 
 # 旧 entry point（仍可用，向后兼容）
 vmware-nsx-security-mcp
