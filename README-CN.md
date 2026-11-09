@@ -106,11 +106,7 @@ pip install --no-index --find-links dist vmware-nsx-security
   "mcpServers": {
     "vmware-nsx-security": {
       "command": "uvx",
-      "args": [
-        "--from",
-        "vmware-nsx-security==1.17.2",
-        "vmware-nsx-security-mcp"
-      ],
+      "args": ["--from", "vmware-nsx-security==1.17.2", "vmware-nsx-security-mcp"],
       "env": {
         "VMWARE_NSX_SECURITY_CONFIG": "~/.vmware-nsx-security/config.yaml"
       }
