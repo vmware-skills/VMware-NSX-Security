@@ -16,7 +16,7 @@ MCP 默认使用本地 stdio。启用可选 HTTPS 后会打开配置的监听端
 ## 快速开始
 
 ```bash
-uv tool install vmware-nsx-security==1.17.2
+uv tool install vmware-nsx-security==1.17.3
 
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
@@ -87,7 +87,7 @@ NSX 9.1 环境中 12 台虚拟机有 10 台被排除。`list_dfw_exclusions` 列
 
 ## MCP 服务器配置
 
-**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-nsx-security==1.17.2` 后，**一条命令启动 MCP**：
+**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-nsx-security==1.17.3` 后，**一条命令启动 MCP**：
 
 ```bash
 # 推荐 — 单命令，无网络依赖
@@ -118,7 +118,7 @@ VMWARE_NSX_SECURITY_CONFIG=/path/to/config.yaml vmware-nsx-security mcp
 
 ```bash
 # 不想安装，临时运行（每次需要联网 resolve 依赖）
-uvx --from vmware-nsx-security==1.17.2 vmware-nsx-security mcp
+uvx --from vmware-nsx-security==1.17.3 vmware-nsx-security mcp
 
 # 旧 entry point（仍可用，向后兼容）
 vmware-nsx-security-mcp

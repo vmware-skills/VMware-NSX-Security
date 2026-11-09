@@ -16,7 +16,7 @@ MCP uses local stdio by default. Opt-in HTTPS opens the configured listener and 
 ## Quick Start
 
 ```bash
-uv tool install vmware-nsx-security==1.17.2
+uv tool install vmware-nsx-security==1.17.3
 
 mkdir -p ~/.vmware-nsx-security
 cp config.example.yaml ~/.vmware-nsx-security/config.yaml
@@ -89,7 +89,7 @@ not see. `dfw_excluded: null` means the list could not be read — which is not 
 
 ## MCP Server Setup
 
-**After `uv tool install vmware-nsx-security==1.17.2`, start the MCP server with one command** (v1.5.15+):
+**After `uv tool install vmware-nsx-security==1.17.3`, start the MCP server with one command** (v1.5.15+):
 
 ```bash
 # Recommended — single command, no network re-resolve
@@ -120,7 +120,7 @@ Add to `~/.claude.json`:
 
 ```bash
 # Run without installing (requires PyPI access each launch)
-uvx --from vmware-nsx-security==1.17.2 vmware-nsx-security mcp
+uvx --from vmware-nsx-security==1.17.3 vmware-nsx-security mcp
 
 # Legacy entry point (still works, kept for backward compatibility)
 vmware-nsx-security-mcp
