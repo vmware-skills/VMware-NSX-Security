@@ -35,6 +35,8 @@ vmware-nsx-security --help
 
 Requires uv and Python >=3.10. Configure targets and credentials locally before remote queries. [Setup guide](https://github.com/vmware-skills/VMware-NSX-Security/blob/main/skills/vmware-nsx-security/references/setup-guide.md).
 
+One-click installs, after local setup: [Claude Desktop extension (.mcpb)](https://github.com/vmware-skills/VMware-NSX-Security/releases/download/v1.17.3/vmware-nsx-security-1.17.3.mcpb) · [Install in VS Code](https://insiders.vscode.dev/redirect/mcp/install?name=vmware-nsx-security&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22--from%22%2C%22vmware-nsx-security%3D%3D1.17.3%22%2C%22vmware-nsx-security-mcp%22%5D%7D). Both run the same pinned 1.17.3 server. The desktop extension starts with read-only tools; change *Tools to offer* to `all` for writes.
+
 For agent-host installation, use the [setup guide](https://github.com/vmware-skills/VMware-NSX-Security/blob/main/skills/vmware-nsx-security/references/setup-guide.md) and [Cursor, Codex, Gemini CLI, Cline and local-model examples](https://github.com/vmware-skills/marketplace/blob/main/docs/agent-hosts.md).
 
 Choose a model with the [shared model-fit workflow](https://github.com/vmware-skills/marketplace/blob/main/model-fit/RUNNER.md): compare the same tasks, review quality and safety, then select the smallest tested passing configuration per task group; this is not a production guarantee.
