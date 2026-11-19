@@ -354,3 +354,5 @@ vmware-policy is automatically installed as a dependency — no manual setup nee
 ## License
 
 MIT — [github.com/vmware-skills/VMware-NSX-Security](https://github.com/vmware-skills/VMware-NSX-Security)
+
+[Contracts](references/mcp-result-contract.md).
