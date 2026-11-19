@@ -1,6 +1,6 @@
 [project]
 name = "vmware-nsx-security-mcpb"
-version = "1.17.3"
+version = "1.17.4"
 description = "Claude Desktop extension shim that runs the published vmware-nsx-security MCP server"
 requires-python = ">=3.10"
-dependencies = ["vmware-nsx-security==1.17.3"]
+dependencies = ["vmware-nsx-security==1.17.4"]
